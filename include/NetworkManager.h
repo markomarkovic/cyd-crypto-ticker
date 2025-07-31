@@ -20,8 +20,6 @@ public:
     String getCurrentSSID() const;
     void disconnect();
     
-    bool httpGet(const String& url, const String& api_key, String& response, int& httpCode);
-    
     // AP mode functionality
     bool startAPMode();
     void stopAPMode();
@@ -51,15 +49,13 @@ public:
     bool scanWiFiNetworks();
     String getScannedNetworksJSON() const;
     
-    // API configuration methods
-    bool validateUUID(const String& uuid) const;
-    bool validateCoinIds(const String& coin_ids) const;
-    bool hasNewAPIConfig() const;
-    String getNewAPIKey() const;
-    String getNewCoinIds() const;
-    void clearNewAPIConfig();
-    void saveAPIConfig(const String& api_key, const String& coin_ids);
-    bool loadStoredAPIConfig(String& api_key, String& coin_ids);
+    // Crypto symbols configuration methods
+    bool validateSymbols(const String& symbols) const;
+    bool hasNewSymbolsConfig() const;
+    String getNewSymbols() const;
+    void clearNewSymbolsConfig();
+    void saveSymbolsConfig(const String& symbols);
+    bool loadStoredSymbolsConfig(String& symbols);
     
 private:
     String convertRSSIToText(int rssi) const;
@@ -90,10 +86,9 @@ private:
     String scanned_networks_json;
     bool has_scanned_networks;
     
-    // New API configuration from web portal
-    bool has_new_api_config;
-    String new_api_key;
-    String new_coin_ids;
+    // New symbols configuration from web portal
+    bool has_new_symbols_config;
+    String new_symbols;
 };
 
 #endif // NETWORK_MANAGER_H

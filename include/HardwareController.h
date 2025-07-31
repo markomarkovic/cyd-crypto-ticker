@@ -12,6 +12,16 @@ public:
     void setLED(bool red, bool green, bool blue);
     void updateLEDStatus(int coins_up, int coins_down, bool has_error, bool data_stale);
     
+    // Connection status LED patterns
+    enum class ConnectionStatus {
+        DISCONNECTED,
+        RECONNECTING,
+        CONNECTED,
+        NORMAL_OPERATION
+    };
+    void setConnectionStatus(ConnectionStatus status);
+    void updateConnectionStatusLED();
+    
     void updateAdaptiveBrightness();
     int readLightSensor() const;
     
@@ -29,6 +39,13 @@ private:
     
     unsigned long led_last_blink_;
     bool led_blink_state_;
+    
+    // Connection status LED state
+    ConnectionStatus connection_status_;
+    unsigned long connection_led_last_update_;
+    bool connection_led_state_;
+    int connection_blink_count_;
+    unsigned long connection_status_start_time_;
     
     unsigned long brightness_last_update_;
     float current_brightness_float_;

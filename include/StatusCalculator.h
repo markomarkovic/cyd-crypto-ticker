@@ -2,8 +2,7 @@
 #define STATUS_CALCULATOR_H
 
 #include <Arduino.h>
-#include "CryptoDataManager.h"
-#include "NetworkManager.h"
+#include "BinanceDataManager.h"
 
 class StatusCalculator {
 public:
@@ -16,19 +15,8 @@ public:
     };
     
     // Calculate coin performance statistics
-    static CoinStatus calculateCoinStatus(const CryptoDataManager& crypto_manager);
+    static CoinStatus calculateCoinStatus(const BinanceDataManager& crypto_manager);
     
-    // Create formatted WiFi information string
-    static String createWifiInfoString(const NetworkManager& network_manager);
-    
-    // Create formatted sync status string
-    static String createSyncStatusString(const CryptoDataManager& crypto_manager, 
-                                        unsigned long current_time);
-    
-    // Create complete WiFi info with sync status
-    static String createCompleteWifiInfo(const NetworkManager& network_manager,
-                                        const CryptoDataManager& crypto_manager,
-                                        unsigned long current_time);
 
 private:
     StatusCalculator() = delete; // Static utility class

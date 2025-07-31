@@ -1,3 +1,14 @@
+/**
+ * @file ApplicationController.cpp
+ * @brief Implementation of the main application controller
+ * @author Claude Code Assistant
+ * @date 2024
+ * 
+ * This file implements the ApplicationController class that orchestrates
+ * the entire CYD Crypto Ticker application including initialization,
+ * state management, WebSocket connections, and hardware control.
+ */
+
 #include "ApplicationController.h"
 #include "constants.h"
 #include <lvgl.h>
@@ -7,7 +18,8 @@ ApplicationController::ApplicationController()
       crypto_manager_(nullptr),
       display_manager_(nullptr),
       hardware_controller_(nullptr),
-      state_manager_(nullptr) {
+      state_manager_(nullptr),
+      websocket_manager_(nullptr) {
 }
 
 ApplicationController::~ApplicationController() {
@@ -16,6 +28,7 @@ ApplicationController::~ApplicationController() {
     delete display_manager_;
     delete hardware_controller_;
     delete state_manager_;
+    delete websocket_manager_;
 }
 
 void ApplicationController::initialize() {
@@ -35,9 +48,6 @@ void ApplicationController::initialize() {
         state_manager_->setWiFiState(ApplicationStateManager::WiFiState::AP_MODE);
     }
     
-    // Initialize timing
-    state_manager_->updateWiFiTimestamp();
-    state_manager_->updateCryptoTimestamp();
 }
 
 void ApplicationController::update() {
@@ -61,7 +71,7 @@ void ApplicationController::update() {
 void ApplicationController::initializeManagers() {
     state_manager_ = new ApplicationStateManager();
     network_manager_ = new NetworkManager();
-    crypto_manager_ = new CryptoDataManager(*network_manager_);
+    crypto_manager_ = new BinanceDataManager();
     display_manager_ = new DisplayManager();
     hardware_controller_ = new HardwareController(
         LED_RED_PIN,
@@ -69,6 +79,7 @@ void ApplicationController::initializeManagers() {
         LED_BLUE_PIN,
         LIGHT_SENSOR_PIN
     );
+    websocket_manager_ = new WebSocketManager();
 }
 
 void ApplicationController::initializeHardware() {
@@ -79,7 +90,7 @@ void ApplicationController::initializeHardware() {
 bool ApplicationController::attemptWiFiConnection() {
     // Check if reconfiguration was requested
     if (network_manager_->isReconfigurationRequested()) {
-        Serial.println("Reconfiguration requested - forcing AP mode");
+        SAFE_SERIAL_PRINTLN("Reconfiguration requested - forcing AP mode");
         return false;
     }
     
@@ -87,14 +98,14 @@ bool ApplicationController::attemptWiFiConnection() {
     bool has_stored_config = network_manager_->loadStoredWiFiConfig(stored_ssid, stored_password);
     
     if (has_stored_config) {
-        Serial.print("Found stored WiFi credentials. SSID: ");
-        Serial.println(stored_ssid);
+        SAFE_SERIAL_PRINT("Found stored WiFi credentials. SSID: ");
+        SAFE_SERIAL_PRINTLN(stored_ssid);
         
         display_manager_->showConnectingMessage("Connecting to WiFi:\n" + stored_ssid);
         return network_manager_->connect(stored_ssid.c_str(), stored_password.c_str(), 20000);
     }
     
-    Serial.println("No stored WiFi credentials found");
+    SAFE_SERIAL_PRINTLN("No stored WiFi credentials found");
     return false;
 }
 
@@ -103,10 +114,10 @@ void ApplicationController::startAPModeWithScan() {
     
     bool scan_success = network_manager_->scanWiFiNetworks();
     if (!scan_success) {
-        Serial.println("WiFi scan failed, but continuing with AP mode");
+        SAFE_SERIAL_PRINTLN("WiFi scan failed, but continuing with AP mode");
     }
     
-    Serial.println("Starting AP mode with pre-scanned networks");
+    SAFE_SERIAL_PRINTLN("Starting AP mode with pre-scanned networks");
     if (network_manager_->startAPMode()) {
         display_manager_->showAPModeScreen(network_manager_->getAPSSID());
     } else {
@@ -115,36 +126,34 @@ void ApplicationController::startAPModeWithScan() {
 }
 
 void ApplicationController::performInitialSetup() {
-    Serial.println();
-    Serial.print("Connected to WiFi! IP address: ");
-    Serial.println(network_manager_->getLocalIP());
+    SAFE_SERIAL_PRINTLN("");
+    SAFE_SERIAL_PRINT("Connected to WiFi! IP address: ");
+    SAFE_SERIAL_PRINTLN(network_manager_->getLocalIP());
     
-    // Load API configuration and handle new configuration if available
-    if (network_manager_->hasNewAPIConfig()) {
-        String new_api_key = network_manager_->getNewAPIKey();
-        String new_coin_ids = network_manager_->getNewCoinIds();
-        network_manager_->saveAPIConfig(new_api_key, new_coin_ids);
-        network_manager_->clearNewAPIConfig();
-        Serial.println("New API configuration saved");
+    // Load symbols configuration and handle new configuration if available
+    if (network_manager_->hasNewSymbolsConfig()) {
+        String new_symbols = network_manager_->getNewSymbols();
+        network_manager_->saveSymbolsConfig(new_symbols);
+        network_manager_->clearNewSymbolsConfig();
+        SAFE_SERIAL_PRINTLN("New symbols configuration saved");
     }
     
-    // Load stored API configuration
-    String api_key, coin_ids;
-    if (!network_manager_->loadStoredAPIConfig(api_key, coin_ids)) {
-        display_manager_->showErrorMessage("No API configuration found.\nPlease configure via web portal.");
+    // Load stored symbols configuration
+    String symbols;
+    if (!network_manager_->loadStoredSymbolsConfig(symbols)) {
+        display_manager_->showErrorMessage("No symbols configuration found.\nPlease configure via web portal.");
         return;
     }
     
-    // Parse coin IDs and fetch initial crypto data
-    crypto_manager_->parseCoinIds(coin_ids.c_str());
+    // Parse symbols for crypto data
+    crypto_manager_->parseSymbols(symbols.c_str());
     
-    display_manager_->showConnectingMessage("Fetching crypto data...");
+    display_manager_->showConnectingMessage("Connecting to real-time data...");
     
-    if (crypto_manager_->fetchCoinData(api_key.c_str())) {
-        showInitialSetupComplete();
-    } else {
-        display_manager_->showErrorMessage("Failed to fetch crypto data");
-    }
+    // Initialize WebSocket connection
+    setupWebSocketConnection(symbols);
+    
+    showInitialSetupComplete();
     
     updateLEDStatus();
 }
@@ -160,7 +169,7 @@ void ApplicationController::handleAPMode() {
             state_manager_->setWiFiState(ApplicationStateManager::WiFiState::CONNECTED);
         } else {
             // Failed to connect, restart AP mode
-            Serial.println("Failed to connect with new credentials, restarting AP mode");
+            SAFE_SERIAL_PRINTLN("Failed to connect with new credentials, restarting AP mode");
             network_manager_->startAPMode();
             display_manager_->showAPModeScreen(network_manager_->getAPSSID());
         }
@@ -183,7 +192,7 @@ void ApplicationController::handleAPModeButtons() {
         unsigned long button_press_time = hardware_controller_->getButtonPressTime();
         
         if (button_press_time >= 10000) { // 10 seconds - factory reset
-            Serial.println("Factory reset requested - clearing all stored data...");
+            SAFE_SERIAL_PRINTLN("Factory reset requested - clearing all stored data...");
             
             // Clear the button request to prevent repeated triggers
             hardware_controller_->clearReconfigurationRequest();
@@ -206,13 +215,13 @@ void ApplicationController::handleAPModeButtons() {
             // Perform factory reset
             network_manager_->factoryReset();
             
-            Serial.println("Factory reset complete. Restarting...");
+            SAFE_SERIAL_PRINTLN("Factory reset complete. Restarting...");
             delay(1000);
             ESP.restart();
             
         } else if (button_press_time == 0) {
             // Button was released before 10 seconds - this was just a 5-9 second press
-            Serial.println("Reconfiguration requested in AP mode - ignoring (already in config mode)");
+            SAFE_SERIAL_PRINTLN("Reconfiguration requested in AP mode - ignoring (already in config mode)");
             hardware_controller_->clearReconfigurationRequest();
         }
         // If button_press_time > 0 and < 10000, keep waiting for potential factory reset
@@ -224,7 +233,11 @@ void ApplicationController::handleNormalOperation() {
     if (!network_manager_->isConnected()) {
         if (!state_manager_->isWiFiDisconnected()) {
             state_manager_->startWiFiDisconnection();
-            Serial.println("WiFi disconnected - starting silent background reconnection");
+            SAFE_SERIAL_PRINTLN("WiFi disconnected - starting silent background reconnection");
+            // Disconnect WebSocket when WiFi is lost
+            if (websocket_manager_) {
+                websocket_manager_->disconnect();
+            }
         }
         state_manager_->setAppState(ApplicationStateManager::AppState::WIFI_RECONNECTING);
         return;
@@ -232,12 +245,21 @@ void ApplicationController::handleNormalOperation() {
         // WiFi is connected - reset disconnection state if it was set
         if (state_manager_->isWiFiDisconnected()) {
             state_manager_->resetWiFiDisconnection();
-            Serial.println("WiFi connection restored");
+            SAFE_SERIAL_PRINTLN("WiFi connection restored");
+            // Reconnect WebSocket when WiFi is restored
+            String symbols;
+            if (network_manager_->loadStoredSymbolsConfig(symbols)) {
+                setupWebSocketConnection(symbols);
+            }
         }
     }
     
-    updatePeriodicTasks();
-    handlePullToRefresh();
+    // Poll WebSocket for incoming messages and handle reconnection
+    if (websocket_manager_) {
+        websocket_manager_->poll();
+        websocket_manager_->processReconnection();
+    }
+    
     updateLEDStatus();
     updateHardwareControls();
 }
@@ -251,12 +273,16 @@ void ApplicationController::handleWiFiReconnection() {
         last_reconnect_attempt = now;
         
         if (attemptSilentReconnection()) {
-            Serial.println("WiFi reconnected successfully!");
+            SAFE_SERIAL_PRINTLN("WiFi reconnected successfully!");
             state_manager_->resetWiFiDisconnection();
             
-            // Update display with current crypto data
-            String sync_status = "Reconnected to:\n" + network_manager_->getCurrentSSID();
-            updateMainDisplay(sync_status);
+            // Update display with current crypto data - now handled by WebSocket callback
+            
+            // Reconnect WebSocket after WiFi reconnection
+            String symbols;
+            if (network_manager_->loadStoredSymbolsConfig(symbols)) {
+                setupWebSocketConnection(symbols);
+            }
             
             state_manager_->setAppState(ApplicationStateManager::AppState::NORMAL_OPERATION);
             return;
@@ -272,46 +298,38 @@ void ApplicationController::handleWiFiReconnection() {
     updateHardwareControls();
 }
 
-void ApplicationController::updatePeriodicTasks() {
-    // Update WiFi status every 10 seconds
-    if (network_manager_->isConnected() && 
-        state_manager_->shouldUpdateWiFi(WIFI_UPDATE_INTERVAL)) {
-        updateWiFiStatus();
-    }
-    
-    // Update crypto data every 60 seconds
-    if (network_manager_->isConnected() && 
-        state_manager_->shouldUpdateCrypto(CRYPTO_UPDATE_INTERVAL)) {
-        updateCryptoData();
-    }
-}
 
-void ApplicationController::updateWiFiStatus() {
-    String sync_status = StatusCalculator::createSyncStatusString(*crypto_manager_, millis());
-    updateMainDisplay(sync_status);
-    state_manager_->updateWiFiTimestamp();
-}
 
-void ApplicationController::updateCryptoData() {
-    String api_key, coin_ids;
-    if (!network_manager_->loadStoredAPIConfig(api_key, coin_ids)) {
-        Serial.println("No API configuration found - skipping crypto data update");
-        return;
-    }
-    
-    bool fetch_success = crypto_manager_->fetchCoinData(api_key.c_str());
-    String sync_status = fetch_success ? "Sync successful" : "Sync failed";
-    updateMainDisplay(sync_status);
-    state_manager_->updateCryptoTimestamp();
-}
 
 void ApplicationController::updateLEDStatus() {
     StatusCalculator::CoinStatus coin_status = StatusCalculator::calculateCoinStatus(*crypto_manager_);
     
+    // Update connection status LED based on WebSocket state
+    if (websocket_manager_) {
+        static bool was_connected = false;
+        bool currently_connected = websocket_manager_->isConnected();
+        
+        if (!currently_connected && websocket_manager_->shouldReconnect()) {
+            // WebSocket is disconnected and trying to reconnect
+            hardware_controller_->setConnectionStatus(HardwareController::ConnectionStatus::RECONNECTING);
+        } else if (!currently_connected) {
+            // WebSocket is disconnected and not trying to reconnect
+            hardware_controller_->setConnectionStatus(HardwareController::ConnectionStatus::DISCONNECTED);
+        } else if (!was_connected && currently_connected) {
+            // WebSocket just connected - trigger the CONNECTED state (3x green blinks)
+            hardware_controller_->setConnectionStatus(HardwareController::ConnectionStatus::CONNECTED);
+            LOG_DEBUG("WebSocket connection established - LED will show 3x green blinks then switch to normal operation");
+        }
+        // Note: The HardwareController automatically transitions from CONNECTED to NORMAL_OPERATION
+        // after the 3 green blinks are complete (see HardwareController::updateConnectionStatusLED)
+        
+        was_connected = currently_connected;
+    }
+    
     hardware_controller_->updateLEDStatus(coin_status.coins_up, 
                                          coin_status.coins_down,
                                          crypto_manager_->hasError(), 
-                                         crypto_manager_->isDataStale());
+                                         false);  // No more stale data with real-time WebSocket
 }
 
 void ApplicationController::updateHardwareControls() {
@@ -322,7 +340,7 @@ void ApplicationController::updateHardwareControls() {
     hardware_controller_->updateButtonStatus();
     
     if (hardware_controller_->isReconfigurationRequested()) {
-        Serial.println("Reconfiguration requested - setting persistent flag...");
+        SAFE_SERIAL_PRINTLN("Reconfiguration requested - setting persistent flag...");
         
         // Set reconfiguration flag instead of directly clearing WiFi config
         network_manager_->setReconfigurationRequested(true);
@@ -336,26 +354,12 @@ void ApplicationController::updateHardwareControls() {
             delay(200);
         }
         
-        Serial.println("Reconfiguration flag set. Restarting...");
+        SAFE_SERIAL_PRINTLN("Reconfiguration flag set. Restarting...");
         delay(1000);
         ESP.restart();
     }
 }
 
-void ApplicationController::handlePullToRefresh() {
-    if (display_manager_->checkPullToRefresh()) {
-        // Pull-to-refresh was triggered, fetch new data
-        String api_key, coin_ids;
-        if (!network_manager_->loadStoredAPIConfig(api_key, coin_ids)) {
-            Serial.println("No API configuration found for pull-to-refresh");
-            return;
-        }
-        
-        bool fetch_success = crypto_manager_->fetchCoinData(api_key.c_str());
-        String sync_status = fetch_success ? "Refresh successful" : "Refresh failed";
-        updateMainDisplay(sync_status);
-    }
-}
 
 bool ApplicationController::connectWithNewCredentials() {
     String new_ssid = network_manager_->getNewSSID();
@@ -370,7 +374,7 @@ bool ApplicationController::connectWithNewCredentials() {
     bool connected = network_manager_->connect(new_ssid.c_str(), new_password.c_str(), 20000);
     
     if (connected) {
-        Serial.println("Connected with new credentials!");
+        SAFE_SERIAL_PRINTLN("Connected with new credentials!");
         // Save the successful WiFi credentials
         network_manager_->saveWiFiConfig(new_ssid, new_password);
         // Clear reconfiguration flag since we successfully configured WiFi
@@ -384,7 +388,7 @@ bool ApplicationController::connectWithNewCredentials() {
 bool ApplicationController::attemptSilentReconnection() {
     String stored_ssid, stored_password;
     if (network_manager_->loadStoredWiFiConfig(stored_ssid, stored_password)) {
-        Serial.println("Attempting silent WiFi reconnection...");
+        SAFE_SERIAL_PRINTLN("Attempting silent WiFi reconnection...");
         return network_manager_->connect(stored_ssid.c_str(), stored_password.c_str(), 
                                        RECONNECTION_ATTEMPT_TIMEOUT_MS);
     }
@@ -393,24 +397,64 @@ bool ApplicationController::attemptSilentReconnection() {
 
 void ApplicationController::showReconnectionMessage() {
     state_manager_->setReconnectionMessageShown(true);
-    Serial.println("1 minute timeout reached - showing user reconnection message");
+    SAFE_SERIAL_PRINTLN("1 minute timeout reached - showing user reconnection message");
     
     String wifi_info = "WiFi connection lost\n";
     wifi_info += "Reconnecting in background...\n";
     wifi_info += "To reset WiFi: Hold BOOT button\n";
     wifi_info += "for 5 seconds until LED blinks";
     
-    String sync_status = "Hold BOOT 5s to clear WiFi config";
-    display_manager_->updateCryptoDisplay(*crypto_manager_, wifi_info, sync_status);
+    display_manager_->updateCryptoDisplay(*crypto_manager_, wifi_info, "", websocket_manager_ ? websocket_manager_->isConnected() : false);
 }
 
-void ApplicationController::updateMainDisplay(const String& sync_status) {
-    String wifi_info = StatusCalculator::createWifiInfoString(*network_manager_);
-    display_manager_->updateCryptoDisplay(*crypto_manager_, wifi_info, sync_status);
-}
 
 void ApplicationController::showInitialSetupComplete() {
-    String wifi_info = StatusCalculator::createWifiInfoString(*network_manager_);
-    String sync_status = "Initial sync complete";
-    display_manager_->updateCryptoDisplay(*crypto_manager_, wifi_info, sync_status);
+    display_manager_->updateCryptoDisplay(*crypto_manager_, "", "", websocket_manager_ ? websocket_manager_->isConnected() : false);
+}
+
+void ApplicationController::setupWebSocketConnection(const String& symbols) {
+    if (!websocket_manager_ || !network_manager_->isConnected()) {
+        return;
+    }
+    
+    SAFE_SERIAL_PRINTLN("Setting up WebSocket connection to Binance...");
+    
+    // Parse symbols into array for WebSocket manager
+    String symbols_array[10]; // Support up to 10 symbols
+    int symbol_count = 0;
+    String temp_symbols = symbols;
+    temp_symbols.toUpperCase();
+    
+    // Split symbols by comma
+    while (temp_symbols.length() > 0 && symbol_count < 10) {
+        int comma_pos = temp_symbols.indexOf(',');
+        if (comma_pos == -1) {
+            symbols_array[symbol_count] = temp_symbols;
+            symbol_count++;
+            break;
+        } else {
+            symbols_array[symbol_count] = temp_symbols.substring(0, comma_pos);
+            temp_symbols = temp_symbols.substring(comma_pos + 1);
+            symbol_count++;
+        }
+    }
+    
+    // Set up price update callback
+    websocket_manager_->setPriceUpdateCallback([this](const String& symbol, float price, float change24h, float changePercent24h) {
+        // Update crypto data in real-time
+        crypto_manager_->updateCoinData(symbol, price, change24h, changePercent24h);
+        
+        // Update display with new data
+        display_manager_->updateCryptoDisplay(*crypto_manager_, "", "", websocket_manager_ ? websocket_manager_->isConnected() : false);
+    });
+    
+    // Configure symbols and connect
+    websocket_manager_->setSymbols(symbols_array, symbol_count);
+    
+    if (websocket_manager_->connect()) {
+        SAFE_SERIAL_PRINTLN("WebSocket connected successfully");
+    } else {
+        SAFE_SERIAL_PRINTLN("Failed to connect to WebSocket");
+        crypto_manager_->setError("WebSocket connection failed");
+    }
 }

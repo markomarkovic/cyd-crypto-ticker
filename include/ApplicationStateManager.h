@@ -36,13 +36,6 @@ public:
     void setReconnectionMessageShown(bool shown);
     bool isReconnectionMessageShown() const;
     
-    // Update timing management
-    void updateWiFiTimestamp();
-    void updateCryptoTimestamp();
-    bool shouldUpdateWiFi(unsigned long wifi_update_interval) const;
-    bool shouldUpdateCrypto(unsigned long crypto_update_interval) const;
-    unsigned long getTimeSinceLastWiFiUpdate() const;
-    unsigned long getTimeSinceLastCryptoUpdate() const;
     
     // LVGL timing
     void updateLVGLTick();
@@ -56,9 +49,6 @@ private:
     unsigned long wifi_disconnection_start_;
     bool reconnection_message_shown_;
     
-    // Update timing
-    unsigned long last_wifi_update_;
-    unsigned long last_crypto_update_;
     
     // LVGL timing
     unsigned long lv_last_tick_;

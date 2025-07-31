@@ -1,9 +1,12 @@
 #include "HardwareController.h"
+#include "constants.h"
 #include <esp32_smartdisplay.h>
 
 HardwareController::HardwareController(int red_pin, int green_pin, int blue_pin, int light_sensor_pin)
     : led_red_pin_(red_pin), led_green_pin_(green_pin), led_blue_pin_(blue_pin), 
       light_sensor_pin_(light_sensor_pin), led_last_blink_(0), led_blink_state_(false),
+      connection_status_(ConnectionStatus::NORMAL_OPERATION), connection_led_last_update_(0), 
+      connection_led_state_(false), connection_blink_count_(0), connection_status_start_time_(0),
       brightness_last_update_(0), current_brightness_float_(0.5f),
       button_pressed_(false), button_was_pressed_(false), button_press_start_(0), 
       reconfiguration_requested_(false) {
@@ -23,7 +26,7 @@ void HardwareController::initialize() {
     // Initialize boot button (active LOW with internal pullup)
     pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
     
-    Serial.println("Hardware controller initialized");
+    SAFE_SERIAL_PRINTLN("Hardware controller initialized");
 }
 
 void HardwareController::setLED(bool red, bool green, bool blue) {
@@ -33,6 +36,14 @@ void HardwareController::setLED(bool red, bool green, bool blue) {
 }
 
 void HardwareController::updateLEDStatus(int coins_up, int coins_down, bool has_error, bool data_stale) {
+    // Always update connection status LED first (takes priority)
+    updateConnectionStatusLED();
+    
+    // Only do normal LED operation if in NORMAL_OPERATION mode
+    if (connection_status_ != ConnectionStatus::NORMAL_OPERATION) {
+        return;
+    }
+    
     unsigned long now = millis();
     
     if (has_error || data_stale) {
@@ -109,7 +120,7 @@ void HardwareController::updateButtonStatus() {
         button_press_start_ = now;
         button_was_pressed_ = true;
         
-        Serial.println("Boot button pressed - hold for 5 seconds to request reconfiguration");
+        SAFE_SERIAL_PRINTLN("Boot button pressed - hold for 5 seconds to request reconfiguration");
     }
     else if (!current_button_state && button_was_pressed_) {
         // Button just released
@@ -117,12 +128,12 @@ void HardwareController::updateButtonStatus() {
         button_was_pressed_ = false;
         
         unsigned long press_duration = now - button_press_start_;
-        Serial.print("Boot button released after ");
-        Serial.print(press_duration);
-        Serial.println("ms");
+        SAFE_SERIAL_PRINT("Boot button released after ");
+        SAFE_SERIAL_PRINT(press_duration);
+        SAFE_SERIAL_PRINTLN("ms");
         
         if (press_duration < RECONFIGURATION_HOLD_TIME) {
-            Serial.println("Button not held long enough to request reconfiguration");
+            SAFE_SERIAL_PRINTLN("Button not held long enough to request reconfiguration");
         }
     }
     else if (current_button_state && button_pressed_) {
@@ -132,7 +143,7 @@ void HardwareController::updateButtonStatus() {
         if (press_duration >= RECONFIGURATION_HOLD_TIME && !reconfiguration_requested_) {
             // Button held for required time - set flag but don't repeat
             reconfiguration_requested_ = true;
-            Serial.println("Reconfiguration requested!");
+            SAFE_SERIAL_PRINTLN("Reconfiguration requested!");
             
             // Visual feedback - blink blue LED rapidly
             setLED(false, false, true);
@@ -161,4 +172,72 @@ unsigned long HardwareController::getButtonPressTime() const {
         return millis() - button_press_start_;
     }
     return 0;
+}
+
+void HardwareController::setConnectionStatus(ConnectionStatus status) {
+    if (connection_status_ != status) {
+        connection_status_ = status;
+        connection_status_start_time_ = millis();
+        connection_blink_count_ = 0;
+        connection_led_state_ = false;
+        connection_led_last_update_ = 0;
+        
+        switch (status) {
+            case ConnectionStatus::DISCONNECTED:
+                LOG_DEBUG("LED: Connection status -> DISCONNECTED (blinking red)");
+                break;
+            case ConnectionStatus::RECONNECTING:
+                LOG_DEBUG("LED: Connection status -> RECONNECTING (blinking yellow)");
+                break;
+            case ConnectionStatus::CONNECTED:
+                LOG_DEBUG("LED: Connection status -> CONNECTED (3x green blinks)");
+                break;
+            case ConnectionStatus::NORMAL_OPERATION:
+                LOG_DEBUG("LED: Connection status -> NORMAL_OPERATION");
+                break;
+        }
+    }
+}
+
+void HardwareController::updateConnectionStatusLED() {
+    unsigned long current_time = millis();
+    
+    switch (connection_status_) {
+        case ConnectionStatus::DISCONNECTED:
+            // Blink red continuously (500ms on/off)
+            if (current_time - connection_led_last_update_ >= 500) {
+                connection_led_state_ = !connection_led_state_;
+                setLED(connection_led_state_, false, false);
+                connection_led_last_update_ = current_time;
+            }
+            break;
+            
+        case ConnectionStatus::RECONNECTING:
+            // Blink yellow/orange continuously (300ms on/off)
+            if (current_time - connection_led_last_update_ >= 300) {
+                connection_led_state_ = !connection_led_state_;
+                setLED(connection_led_state_, connection_led_state_, false); // Red + Green = Yellow
+                connection_led_last_update_ = current_time;
+            }
+            break;
+            
+        case ConnectionStatus::CONNECTED:
+            // Blink green 3 times rapidly (100ms on/off)
+            if (connection_blink_count_ < 6) { // 3 blinks = 6 state changes
+                if (current_time - connection_led_last_update_ >= 100) {
+                    connection_led_state_ = !connection_led_state_;
+                    setLED(false, connection_led_state_, false);
+                    connection_led_last_update_ = current_time;
+                    connection_blink_count_++;
+                }
+            } else {
+                // After 3 blinks, switch to normal operation
+                setConnectionStatus(ConnectionStatus::NORMAL_OPERATION);
+            }
+            break;
+            
+        case ConnectionStatus::NORMAL_OPERATION:
+            // Use normal LED operation - this will be handled by updateLEDStatus
+            break;
+    }
 }

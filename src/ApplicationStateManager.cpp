@@ -7,8 +7,6 @@ ApplicationStateManager::ApplicationStateManager()
       wifi_disconnection_detected_(false),
       wifi_disconnection_start_(0),
       reconnection_message_shown_(false),
-      last_wifi_update_(0),
-      last_crypto_update_(0),
       lv_last_tick_(0) {
 }
 
@@ -59,29 +57,6 @@ bool ApplicationStateManager::isReconnectionMessageShown() const {
     return reconnection_message_shown_;
 }
 
-void ApplicationStateManager::updateWiFiTimestamp() {
-    last_wifi_update_ = millis();
-}
-
-void ApplicationStateManager::updateCryptoTimestamp() {
-    last_crypto_update_ = millis();
-}
-
-bool ApplicationStateManager::shouldUpdateWiFi(unsigned long wifi_update_interval) const {
-    return (millis() - last_wifi_update_) > wifi_update_interval;
-}
-
-bool ApplicationStateManager::shouldUpdateCrypto(unsigned long crypto_update_interval) const {
-    return (millis() - last_crypto_update_) > crypto_update_interval;
-}
-
-unsigned long ApplicationStateManager::getTimeSinceLastWiFiUpdate() const {
-    return millis() - last_wifi_update_;
-}
-
-unsigned long ApplicationStateManager::getTimeSinceLastCryptoUpdate() const {
-    return millis() - last_crypto_update_;
-}
 
 void ApplicationStateManager::updateLVGLTick() {
     unsigned long now = millis();

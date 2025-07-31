@@ -1,4 +1,5 @@
 #include "NetworkManager.h"
+#include "constants.h"
 #include "esp_task_wdt.h"
 
 NetworkManager::NetworkManager() : 
@@ -10,7 +11,7 @@ NetworkManager::NetworkManager() :
     scan_in_progress(false),
     pending_scan_request(nullptr),
     has_scanned_networks(false),
-    has_new_api_config(false) {
+    has_new_symbols_config(false) {
     ap_password = ""; // No password - open AP
 }
 
@@ -25,30 +26,30 @@ NetworkManager::~NetworkManager() {
 
 bool NetworkManager::connect(const char* ssid, const char* password, unsigned long timeout_ms) {
     if (!ssid || strlen(ssid) == 0) {
-        Serial.println("No WiFi SSID provided");
+        SAFE_SERIAL_PRINTLN("No WiFi SSID provided");
         return false;
     }
     
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
     
-    Serial.print("Connecting to WiFi");
+    SAFE_SERIAL_PRINT("Connecting to WiFi");
     unsigned long start_time = millis();
     
     while (WiFi.status() != WL_CONNECTED && (millis() - start_time) < timeout_ms) {
         delay(500);
-        Serial.print(".");
+        SAFE_SERIAL_PRINT(".");
     }
     
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.println();
-        Serial.print("Connected to WiFi! IP address: ");
-        Serial.println(WiFi.localIP());
+        SAFE_SERIAL_PRINTLN("");
+        SAFE_SERIAL_PRINT("Connected to WiFi! IP address: ");
+        SAFE_SERIAL_PRINTLN(WiFi.localIP());
         return true;
     }
     
-    Serial.println();
-    Serial.println("WiFi connection timeout");
+    SAFE_SERIAL_PRINTLN("");
+    SAFE_SERIAL_PRINTLN("WiFi connection timeout");
     return false;
 }
 
@@ -81,25 +82,6 @@ void NetworkManager::disconnect() {
     WiFi.disconnect();
 }
 
-bool NetworkManager::httpGet(const String& url, const String& api_key, String& response, int& httpCode) {
-    HTTPClient http;
-    http.begin(url);
-    
-    // Add headers
-    http.addHeader("X-CMC_PRO_API_KEY", api_key);
-    http.addHeader("Accept", "application/json");
-    
-    httpCode = http.GET();
-    
-    if (httpCode == HTTP_CODE_OK) {
-        response = http.getString();
-        http.end();
-        return true;
-    }
-    
-    http.end();
-    return false;
-}
 
 String NetworkManager::convertRSSIToText(int rssi) const {
     if (rssi >= -50)
@@ -126,12 +108,12 @@ bool NetworkManager::startAPMode() {
         ap_mode_active = true;
         setupWebServer();
         
-        Serial.println("AP Mode started");
-        Serial.print("SSID: ");
-        Serial.println(ap_ssid);
-        Serial.println("Password: (open - no password)");
-        Serial.print("IP address: ");
-        Serial.println(WiFi.softAPIP());
+        SAFE_SERIAL_PRINTLN("AP Mode started");
+        SAFE_SERIAL_PRINT("SSID: ");
+        SAFE_SERIAL_PRINTLN(ap_ssid);
+        SAFE_SERIAL_PRINTLN("Password: (open - no password)");
+        SAFE_SERIAL_PRINT("IP address: ");
+        SAFE_SERIAL_PRINTLN(WiFi.softAPIP());
     }
     
     return success;
@@ -157,7 +139,7 @@ void NetworkManager::stopAPMode() {
     WiFi.softAPdisconnect(true);
     ap_mode_active = false;
     
-    Serial.println("AP Mode stopped");
+    SAFE_SERIAL_PRINTLN("AP Mode stopped");
 }
 
 bool NetworkManager::isAPMode() const {
@@ -396,11 +378,10 @@ void NetworkManager::setupWebServer() {
         temp_prefs.end();
         bool has_stored_config = (stored_ssid.length() > 0);
         
-        // Load stored API config
-        String stored_api_key, stored_coin_ids;
-        temp_prefs.begin("api", true); // Read-only
-        stored_api_key = temp_prefs.getString("api_key", "");
-        stored_coin_ids = temp_prefs.getString("coin_ids", "1,1027,1839,52,20947,74");
+        // Load stored symbols config
+        String stored_symbols;
+        temp_prefs.begin("symbols", true); // Read-only
+        stored_symbols = temp_prefs.getString("symbols", "BTCUSDT,ETHUSDT,BNBUSDT,ADAUSDT,SOLUSDT,DOGEUSDT");
         temp_prefs.end();
         
         html += R"HTML(            <h3>WiFi Configuration</h3>
@@ -415,22 +396,14 @@ void NetworkManager::setupWebServer() {
         }
         html += R"HTML(>
             
-            <h3>CoinMarketCap API Configuration</h3>
-            <input type="text" name="api_key" placeholder="API Key (UUID format)" )HTML";
-        if (stored_api_key.length() > 0) {
-            html += "value=\"" + escapeJsonString(stored_api_key) + "\" ";
+            <h3>Cryptocurrency Configuration</h3>
+            <input type="text" name="symbols" placeholder="Binance Symbols (comma-separated)" )HTML";
+        if (stored_symbols.length() > 0) {
+            html += "value=\"" + escapeJsonString(stored_symbols) + "\" ";
         }
         html += R"HTML(required>
             <div class="help-text">
-                Get your free API key from <a href="https://coinmarketcap.com/api/" target="_blank">CoinMarketCap API</a>
-            </div>
-            
-            <input type="text" name="coin_ids" placeholder="Coin IDs (comma-separated numbers)" )HTML";
-        html += "value=\"" + escapeJsonString(stored_coin_ids) + "\" ";
-        html += R"HTML(required>
-            <div class="help-text">
-                Find coin IDs on CoinMarketCap coin pages (e.g., <a href="https://coinmarketcap.com/currencies/dogecoin/" target="_blank">Dogecoin</a>) 
-                in the URL or as the UCID property. Examples: Bitcoin=1, Ethereum=1027, Dogecoin=74
+                Enter Binance trading pairs (e.g., BTCUSDT,ETHUSDT,SOLUSDT). No API key required - completely free!
             </div>
             
             <div id="validation-errors"></div>
@@ -440,28 +413,36 @@ void NetworkManager::setupWebServer() {
     <script>
         function validateForm() {
             var errors = [];
-            var apiKey = document.querySelector('input[name="api_key"]').value;
-            var coinIds = document.querySelector('input[name="coin_ids"]').value;
+            var symbols = document.querySelector('input[name="symbols"]').value;
             var errorDiv = document.getElementById('validation-errors');
             
             // Clear previous errors
             errorDiv.style.display = 'none';
             errorDiv.innerHTML = '';
             
-            // Validate UUID format for API key
-            var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            if (!uuidRegex.test(apiKey)) {
-                errors.push('API Key must be in UUID format (e.g., 12345678-1234-1234-1234-123456789abc)');
-            }
-            
-            // Validate coin IDs format
-            if (coinIds.indexOf(' ') !== -1 || coinIds.indexOf('\t') !== -1) {
-                errors.push('Coin IDs must not contain whitespace');
-            }
-            
-            var coinIdRegex = /^[0-9]+(,[0-9]+)*$/;
-            if (!coinIdRegex.test(coinIds)) {
-                errors.push('Coin IDs must be comma-separated numbers (e.g., 1,1027,1839)');
+            // Validate symbols format
+            if (symbols.length === 0) {
+                errors.push('Cryptocurrency symbols are required');
+            } else {
+                // Check for valid Binance symbol format
+                var symbolRegex = /^[A-Z0-9]+(,[A-Z0-9]+)*$/;
+                if (!symbolRegex.test(symbols.toUpperCase())) {
+                    errors.push('Symbols must be comma-separated without spaces (e.g., BTCUSDT,ETHUSDT,SOLUSDT)');
+                }
+                
+                // Check individual symbols and limit to 6
+                var symbolArray = symbols.split(',');
+                if (symbolArray.length > 6) {
+                    errors.push('Maximum 6 cryptocurrency symbols allowed (you entered ' + symbolArray.length + ')');
+                } else {
+                    for (var i = 0; i < symbolArray.length; i++) {
+                        var symbol = symbolArray[i].trim().toUpperCase();
+                        if (symbol.length < 6 || !symbol.endsWith('USDT')) {
+                            errors.push('Invalid symbol: ' + symbol + '. Use Binance USDT pairs (e.g., BTCUSDT)');
+                            break;
+                        }
+                    }
+                }
             }
             
             // Show errors if any
@@ -490,6 +471,17 @@ void NetworkManager::setupWebServer() {
         function selectNetwork(ssid) {
             document.querySelector('input[name="ssid"]').value = ssid;
         }
+        
+        // Auto-convert symbols input to uppercase
+        document.addEventListener('DOMContentLoaded', function() {
+            var symbolsInput = document.querySelector('input[name="symbols"]');
+            symbolsInput.addEventListener('input', function(e) {
+                var start = e.target.selectionStart;
+                var end = e.target.selectionEnd;
+                e.target.value = e.target.value.toUpperCase();
+                e.target.setSelectionRange(start, end);
+            });
+        });
     </script>
 </body>
 </html>)HTML";
@@ -498,7 +490,7 @@ void NetworkManager::setupWebServer() {
     
     // Refresh endpoint - reboot device to rescan networks
     web_server->on("/refresh", HTTP_GET, [this](AsyncWebServerRequest *request){
-        Serial.println("Refresh requested - rebooting device");
+        SAFE_SERIAL_PRINTLN("Refresh requested - rebooting device");
         request->send(200, "text/html", 
             "<html><body style='font-family:Arial; text-align:center; background:#222; color:#fff;'>"
             "<h1>Refreshing...</h1><p>Device is rebooting to rescan networks.</p>"
@@ -511,8 +503,7 @@ void NetworkManager::setupWebServer() {
     web_server->on("/connect", HTTP_POST, [this](AsyncWebServerRequest *request){
         String ssid = "";
         String password = "";
-        String api_key = "";
-        String coin_ids = "";
+        String symbols = "";
         
         if (request->hasParam("ssid", true)) {
             ssid = request->getParam("ssid", true)->value();
@@ -520,11 +511,8 @@ void NetworkManager::setupWebServer() {
         if (request->hasParam("password", true)) {
             password = request->getParam("password", true)->value();
         }
-        if (request->hasParam("api_key", true)) {
-            api_key = request->getParam("api_key", true)->value();
-        }
-        if (request->hasParam("coin_ids", true)) {
-            coin_ids = request->getParam("coin_ids", true)->value();
+        if (request->hasParam("symbols", true)) {
+            symbols = request->getParam("symbols", true)->value();
         }
         
         // Server-side validation
@@ -532,15 +520,10 @@ void NetworkManager::setupWebServer() {
         if (ssid.length() == 0) {
             errors += "SSID is required.<br>";
         }
-        if (api_key.length() == 0) {
-            errors += "API Key is required.<br>";
-        } else if (!validateUUID(api_key)) {
-            errors += "API Key must be in UUID format.<br>";
-        }
-        if (coin_ids.length() == 0) {
-            errors += "Coin IDs are required.<br>";
-        } else if (!validateCoinIds(coin_ids)) {
-            errors += "Coin IDs must be comma-separated numbers with no whitespace.<br>";
+        if (symbols.length() == 0) {
+            errors += "Cryptocurrency symbols are required.<br>";
+        } else if (!validateSymbols(symbols)) {
+            errors += "Symbols must be valid Binance trading pairs (e.g., BTCUSDT,ETHUSDT).<br>";
         }
         
         if (errors.length() > 0) {
@@ -555,14 +538,13 @@ void NetworkManager::setupWebServer() {
         new_password = password;
         has_new_credentials = true;
         
-        new_api_key = api_key;
-        new_coin_ids = coin_ids;
-        has_new_api_config = true;
+        new_symbols = symbols;
+        has_new_symbols_config = true;
         
         request->send(200, "text/html", 
             "<html><body style='font-family:Arial; text-align:center; background:#222; color:#fff;'>"
             "<h1>Configuration Saved</h1><p>The device will now try to connect to: " + ssid + "</p>"
-            "<p>API configuration has been saved.</p>"
+            "<p>Cryptocurrency symbols have been saved.</p>"
             "<p>If WiFi connection is successful, this access point will be closed.</p></body></html>");
     });
     
@@ -572,14 +554,14 @@ void NetworkManager::setupWebServer() {
     });
     
     web_server->begin();
-    Serial.println("Web server started");
+    SAFE_SERIAL_PRINTLN("Web server started");
 }
 
 void NetworkManager::clearStoredWiFiConfig() {
     preferences.begin("wifi", false);
     preferences.clear();
     preferences.end();
-    Serial.println("WiFi configuration cleared from storage");
+    SAFE_SERIAL_PRINTLN("WiFi configuration cleared from storage");
 }
 
 void NetworkManager::saveWiFiConfig(const String& ssid, const String& password) {
@@ -587,7 +569,7 @@ void NetworkManager::saveWiFiConfig(const String& ssid, const String& password) 
     preferences.putString("ssid", ssid);
     preferences.putString("password", password);
     preferences.end();
-    Serial.println("WiFi configuration saved to storage");
+    SAFE_SERIAL_PRINTLN("WiFi configuration saved to storage");
 }
 
 bool NetworkManager::loadStoredWiFiConfig(String& ssid, String& password) {
@@ -599,11 +581,11 @@ bool NetworkManager::loadStoredWiFiConfig(String& ssid, String& password) {
     preferences.end();
     
     if (ssid.length() > 0) {
-        Serial.println("WiFi configuration loaded from storage");
+        SAFE_SERIAL_PRINTLN("WiFi configuration loaded from storage");
         return true;
     }
     
-    Serial.println("No WiFi configuration found in storage");
+    SAFE_SERIAL_PRINTLN("No WiFi configuration found in storage");
     return false;
 }
 
@@ -613,9 +595,9 @@ void NetworkManager::setReconfigurationRequested(bool requested) {
     preferences.end();
     
     if (requested) {
-        Serial.println("Reconfiguration flag set in persistent storage");
+        SAFE_SERIAL_PRINTLN("Reconfiguration flag set in persistent storage");
     } else {
-        Serial.println("Reconfiguration flag cleared from persistent storage");
+        SAFE_SERIAL_PRINTLN("Reconfiguration flag cleared from persistent storage");
     }
 }
 
@@ -633,7 +615,7 @@ void NetworkManager::clearReconfigurationFlag() {
 }
 
 void NetworkManager::factoryReset() {
-    Serial.println("Performing factory reset - clearing all stored data...");
+    SAFE_SERIAL_PRINTLN("Performing factory reset - clearing all stored data...");
     
     // Clear WiFi configuration
     preferences.begin("wifi", false);
@@ -645,7 +627,7 @@ void NetworkManager::factoryReset() {
     preferences.clear();
     preferences.end();
     
-    Serial.println("Factory reset complete - all stored data cleared");
+    SAFE_SERIAL_PRINTLN("Factory reset complete - all stored data cleared");
 }
 
 String NetworkManager::escapeJsonString(const String& str) {
@@ -689,7 +671,7 @@ String NetworkManager::escapeJsonString(const String& str) {
 }
 
 bool NetworkManager::scanWiFiNetworks() {
-    Serial.println("Scanning for WiFi networks...");
+    SAFE_SERIAL_PRINTLN("Scanning for WiFi networks...");
     
     // Set to STA mode for scanning
     WiFi.mode(WIFI_STA);
@@ -701,9 +683,9 @@ bool NetworkManager::scanWiFiNetworks() {
     // Perform synchronous scan
     int n = WiFi.scanNetworks();
     
-    Serial.print("WiFi scan completed. Found ");
-    Serial.print(n);
-    Serial.println(" networks");
+    SAFE_SERIAL_PRINT("WiFi scan completed. Found ");
+    SAFE_SERIAL_PRINT(n);
+    SAFE_SERIAL_PRINTLN(" networks");
     
     if (n > 0) {
         // Build JSON string with scan results
@@ -724,16 +706,16 @@ bool NetworkManager::scanWiFiNetworks() {
         has_scanned_networks = true;
         WiFi.scanDelete(); // Clean up
         
-        Serial.println("WiFi networks cached for AP mode");
+        SAFE_SERIAL_PRINTLN("WiFi networks cached for AP mode");
         return true;
     } else if (n == 0) {
-        Serial.println("No WiFi networks found");
+        SAFE_SERIAL_PRINTLN("No WiFi networks found");
         scanned_networks_json = "[]";
         has_scanned_networks = true;
         return true;
     } else {
-        Serial.print("WiFi scan failed with error: ");
-        Serial.println(n);
+        SAFE_SERIAL_PRINT("WiFi scan failed with error: ");
+        SAFE_SERIAL_PRINTLN(n);
         scanned_networks_json = "[]";
         has_scanned_networks = false;
         return false;
@@ -747,42 +729,36 @@ String NetworkManager::getScannedNetworksJSON() const {
     return "[]";
 }
 
-bool NetworkManager::validateUUID(const String& uuid) const {
-    if (uuid.length() != 36) return false;
-    
-    for (int i = 0; i < 36; i++) {
-        char c = uuid.charAt(i);
-        if (i == 8 || i == 13 || i == 18 || i == 23) {
-            if (c != '-') return false;
-        } else {
-            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-bool NetworkManager::validateCoinIds(const String& coin_ids) const {
-    if (coin_ids.length() == 0) return false;
+bool NetworkManager::validateSymbols(const String& symbols) const {
+    if (symbols.length() == 0) return false;
     
     // Check for whitespace
-    if (coin_ids.indexOf(' ') != -1 || coin_ids.indexOf('\t') != -1 || 
-        coin_ids.indexOf('\n') != -1 || coin_ids.indexOf('\r') != -1) {
+    if (symbols.indexOf(' ') != -1 || symbols.indexOf('\t') != -1 || 
+        symbols.indexOf('\n') != -1 || symbols.indexOf('\r') != -1) {
         return false;
     }
     
-    // Split by commas and validate each part
-    String temp = coin_ids;
+    // Split by commas and validate each symbol
+    String temp = symbols;
+    temp.toUpperCase();
+    
     while (temp.length() > 0) {
         int comma_pos = temp.indexOf(',');
-        String part = (comma_pos == -1) ? temp : temp.substring(0, comma_pos);
+        String symbol = (comma_pos == -1) ? temp : temp.substring(0, comma_pos);
         
-        if (part.length() == 0) return false; // Empty part
+        if (symbol.length() == 0) return false; // Empty symbol
         
-        // Check if part is a number
-        for (int i = 0; i < part.length(); i++) {
-            if (!isDigit(part.charAt(i))) return false;
+        // Check if symbol is valid format (letters/numbers, typically ends with USDT)
+        if (symbol.length() < 6 || !symbol.endsWith("USDT")) {
+            return false;
+        }
+        
+        // Check for valid characters (A-Z, 0-9)
+        for (int i = 0; i < symbol.length(); i++) {
+            char c = symbol.charAt(i);
+            if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) {
+                return false;
+            }
         }
         
         if (comma_pos == -1) break;
@@ -792,45 +768,38 @@ bool NetworkManager::validateCoinIds(const String& coin_ids) const {
     return true;
 }
 
-bool NetworkManager::hasNewAPIConfig() const {
-    return has_new_api_config;
+bool NetworkManager::hasNewSymbolsConfig() const {
+    return has_new_symbols_config;
 }
 
-String NetworkManager::getNewAPIKey() const {
-    return new_api_key;
+String NetworkManager::getNewSymbols() const {
+    return new_symbols;
 }
 
-String NetworkManager::getNewCoinIds() const {
-    return new_coin_ids;
+void NetworkManager::clearNewSymbolsConfig() {
+    has_new_symbols_config = false;
+    new_symbols = "";
 }
 
-void NetworkManager::clearNewAPIConfig() {
-    has_new_api_config = false;
-    new_api_key = "";
-    new_coin_ids = "";
-}
-
-void NetworkManager::saveAPIConfig(const String& api_key, const String& coin_ids) {
-    preferences.begin("api", false);
-    preferences.putString("api_key", api_key);
-    preferences.putString("coin_ids", coin_ids);
+void NetworkManager::saveSymbolsConfig(const String& symbols) {
+    preferences.begin("symbols", false);
+    preferences.putString("symbols", symbols);
     preferences.end();
-    Serial.println("API configuration saved to storage");
+    SAFE_SERIAL_PRINTLN("Symbols configuration saved to storage");
 }
 
-bool NetworkManager::loadStoredAPIConfig(String& api_key, String& coin_ids) {
-    preferences.begin("api", true); // Read-only
+bool NetworkManager::loadStoredSymbolsConfig(String& symbols) {
+    preferences.begin("symbols", true); // Read-only
     
-    api_key = preferences.getString("api_key", "");
-    coin_ids = preferences.getString("coin_ids", "1,1027,1839,52,20947,74");
+    symbols = preferences.getString("symbols", "BTCUSDT,ETHUSDT,BNBUSDT,ADAUSDT,SOLUSDT,DOGEUSDT");
     
     preferences.end();
     
-    if (api_key.length() > 0) {
-        Serial.println("API configuration loaded from storage");
+    if (symbols.length() > 0) {
+        SAFE_SERIAL_PRINTLN("Symbols configuration loaded from storage");
         return true;
     }
     
-    Serial.println("No API configuration found in storage");
+    SAFE_SERIAL_PRINTLN("No symbols configuration found in storage");
     return false;
 }

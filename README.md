@@ -4,7 +4,7 @@ A real-time cryptocurrency price display application for ESP32-based "Cheap Yell
 
 ## ✨ Features
 
-- **Real-time Crypto Prices**: Live price updates from CoinMarketCap API
+- **Real-time Crypto Prices**: Live price updates from Binance WebSocket API (no API key required)
 - **Multi-Currency Support**: Display multiple cryptocurrencies simultaneously
 - **Touch Interface**: Modern LVGL-based GUI with touch controls
 - **Visual Indicators**: Color-coded price trends and status indicators
@@ -54,7 +54,7 @@ This project supports all Sunton ESP32 display boards including:
    # Or install PlatformIO IDE for VS Code
    ```
 
-2. **CoinMarketCap API Key**: Get a free API key from [CoinMarketCap](https://coinmarketcap.com/api/)
+2. **No API Key Required**: Uses free Binance WebSocket API for real-time cryptocurrency data
 
 ### Setup Instructions
 
@@ -73,7 +73,7 @@ This project supports all Sunton ESP32 display boards including:
 
 3. **Configure the application**:
 
-   The application provides a web-based configuration interface. After first boot, connect to the device's WiFi configuration portal to set up your WiFi credentials and CoinMarketCap API settings through an HTML interface.
+   The application provides a web-based configuration interface. After first boot, connect to the device's WiFi configuration portal to set up your WiFi credentials and select up to 6 Binance USDT trading pairs through an HTML interface.
 
 4. **Build and upload**:
 
@@ -92,20 +92,23 @@ This project supports all Sunton ESP32 display boards including:
 
 ### Finding Cryptocurrency IDs
 
-Use the included Python utility to find CoinMarketCap IDs for your favorite cryptocurrencies:
+Use the included Python utility to discover available Binance trading pairs:
 
 ```bash
-# Find a specific coin
-python find_coin_id.py --api-key YOUR_API_KEY ETH
+# Find specific trading pairs
+python find_binance_symbols.py BTC ETH SOL
 
-# Find multiple coins
-python find_coin_id.py --api-key YOUR_API_KEY BTC SOL ADA DOGE
+# List top 20 pairs by trading volume
+python find_binance_symbols.py --list-top 20
 
-# List top 20 cryptocurrencies
-python find_coin_id.py --api-key YOUR_API_KEY --list-top 20
+# Search by cryptocurrency name
+python find_binance_symbols.py --search bitcoin
+
+# Show all USDT pairs
+python find_binance_symbols.py --usdt-pairs
 ```
 
-The utility will output the coin IDs that you can enter in the web configuration interface.
+The utility will show available trading pairs that you can enter in the web configuration interface.
 
 ### Board Configuration
 
@@ -150,7 +153,7 @@ The application provides a built-in web interface for configuration:
 
 1. **First Boot**: Device creates a WiFi access point for initial setup
 2. **Configuration Portal**: Access the HTML configuration interface
-3. **Settings**: Configure WiFi credentials, CoinMarketCap API key, and coin IDs
+3. **Settings**: Configure WiFi credentials and select up to 6 Binance USDT trading pairs
 4. **Save & Restart**: Settings are saved and the device connects to your WiFi network
 
 ## 🔧 Development
@@ -176,7 +179,7 @@ The application provides a built-in web interface for configuration:
 ### Key Components
 
 - **ApplicationController**: Main application lifecycle management
-- **CryptoDataManager**: Handles API communication with CoinMarketCap
+- **BinanceDataManager**: Handles real-time data from Binance WebSocket API
 - **NetworkManager**: WiFi connection, web configuration interface, and reconnection logic
 - **DisplayManager**: LVGL-based user interface management using constants from constants.h
 - **HardwareController**: RGB LED and sensor management using hardware pin constants
@@ -266,7 +269,7 @@ Please include:
 
 ### Configuration Security
 
-- Keep your CoinMarketCap API key secure in the web configuration interface
+- Cryptocurrency pairs are automatically converted to uppercase in the web interface
 - Access the configuration portal only when needed
 - Monitor API usage to avoid rate limits
 - Use HTTPS for all API communications
@@ -288,7 +291,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Sunton](http://www.lcdwiki.com/) for the affordable ESP32 display boards
 - [LVGL](https://lvgl.io/) for the excellent embedded graphics library
 - [rzeldent](https://github.com/rzeldent) for the esp32_smartdisplay library
-- [CoinMarketCap](https://coinmarketcap.com/) for the cryptocurrency API
+- [Binance](https://binance.com/) for the free WebSocket cryptocurrency API
 - [Claude Code](https://claude.ai/code) for significant contributions to the code and documentation
 - The ESP32 and Arduino communities for excellent documentation and support
 
