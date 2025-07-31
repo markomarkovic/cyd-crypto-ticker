@@ -9,7 +9,7 @@ HardwareController::HardwareController(int red_pin, int green_pin, int blue_pin,
       connection_led_state_(false), connection_blink_count_(0), connection_status_start_time_(0),
       brightness_last_update_(0), current_brightness_float_(0.5f),
       button_pressed_(false), button_was_pressed_(false), button_press_start_(0), 
-      reconfiguration_requested_(false) {
+      reconfiguration_requested_(false), short_press_detected_(false) {
 }
 
 void HardwareController::initialize() {
@@ -26,7 +26,7 @@ void HardwareController::initialize() {
     // Initialize boot button (active LOW with internal pullup)
     pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
     
-    SAFE_SERIAL_PRINTLN("Hardware controller initialized");
+    LOG_DEBUG("Hardware controller initialized");
 }
 
 void HardwareController::setLED(bool red, bool green, bool blue) {
@@ -120,7 +120,7 @@ void HardwareController::updateButtonStatus() {
         button_press_start_ = now;
         button_was_pressed_ = true;
         
-        SAFE_SERIAL_PRINTLN("Boot button pressed - hold for 5 seconds to request reconfiguration");
+        LOG_DEBUG("Boot button pressed - hold for 5 seconds to request reconfiguration");
     }
     else if (!current_button_state && button_was_pressed_) {
         // Button just released
@@ -128,12 +128,13 @@ void HardwareController::updateButtonStatus() {
         button_was_pressed_ = false;
         
         unsigned long press_duration = now - button_press_start_;
-        SAFE_SERIAL_PRINT("Boot button released after ");
-        SAFE_SERIAL_PRINT(press_duration);
-        SAFE_SERIAL_PRINTLN("ms");
+        LOG_DEBUG("Boot button released after ");
+        LOG_DEBUG(press_duration);
+        LOG_DEBUG("ms");
         
         if (press_duration < RECONFIGURATION_HOLD_TIME) {
-            SAFE_SERIAL_PRINTLN("Button not held long enough to request reconfiguration");
+            LOG_DEBUG("Short button press detected");
+            short_press_detected_ = true;
         }
     }
     else if (current_button_state && button_pressed_) {
@@ -143,7 +144,7 @@ void HardwareController::updateButtonStatus() {
         if (press_duration >= RECONFIGURATION_HOLD_TIME && !reconfiguration_requested_) {
             // Button held for required time - set flag but don't repeat
             reconfiguration_requested_ = true;
-            SAFE_SERIAL_PRINTLN("Reconfiguration requested!");
+            LOG_DEBUG("Reconfiguration requested!");
             
             // Visual feedback - blink blue LED rapidly
             setLED(false, false, true);
@@ -163,6 +164,7 @@ bool HardwareController::isReconfigurationRequested() const {
 
 void HardwareController::clearReconfigurationRequest() {
     reconfiguration_requested_ = false;
+    short_press_detected_ = false;
     button_pressed_ = false;
     button_was_pressed_ = false;
 }
@@ -172,6 +174,14 @@ unsigned long HardwareController::getButtonPressTime() const {
         return millis() - button_press_start_;
     }
     return 0;
+}
+
+bool HardwareController::isShortPressDetected() const {
+    return short_press_detected_;
+}
+
+void HardwareController::clearShortPressDetected() {
+    short_press_detected_ = false;
 }
 
 void HardwareController::setConnectionStatus(ConnectionStatus status) {

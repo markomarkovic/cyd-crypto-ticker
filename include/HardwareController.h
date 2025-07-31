@@ -30,6 +30,8 @@ public:
     bool isReconfigurationRequested() const;
     void clearReconfigurationRequest();
     unsigned long getButtonPressTime() const;
+    bool isShortPressDetected() const;
+    void clearShortPressDetected();
     
 private:
     int led_red_pin_;
@@ -56,6 +58,7 @@ private:
     bool button_was_pressed_;
     unsigned long button_press_start_;
     bool reconfiguration_requested_;
+    bool short_press_detected_;
     static const unsigned long RECONFIGURATION_HOLD_TIME = 5000; // 5 seconds
     
     void blinkLED();

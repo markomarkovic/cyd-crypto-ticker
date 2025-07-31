@@ -143,23 +143,7 @@
 #define LOG_ERRORF(format, ...) do { if (ENABLE_LOGGING && CURRENT_LOG_LEVEL <= LOG_LEVEL_ERROR && Serial) { Serial.setTimeout(SERIAL_TIMEOUT_MS); Serial.print("[ERROR] "); Serial.printf(format, ##__VA_ARGS__); Serial.println(); } } while(0)
 #define LOG_FATALF(format, ...) do { if (ENABLE_LOGGING && CURRENT_LOG_LEVEL <= LOG_LEVEL_FATAL && Serial) { Serial.setTimeout(SERIAL_TIMEOUT_MS); Serial.print("[FATAL] "); Serial.printf(format, ##__VA_ARGS__); Serial.println(); } } while(0)
 
-/**
- * @deprecated Use LOG_DEBUG instead
- * @brief Legacy macro for backward compatibility - mapped to LOG_DEBUG
- */
-#define SAFE_SERIAL_PRINT(x) LOG_DEBUG(x)
-
-/**
- * @deprecated Use LOG_DEBUG instead  
- * @brief Legacy macro for backward compatibility - mapped to LOG_DEBUG
- */
-#define SAFE_SERIAL_PRINTLN(x) LOG_DEBUG(x)
-
-/**
- * @deprecated Use LOG_DEBUGF instead
- * @brief Legacy macro for backward compatibility - mapped to LOG_DEBUGF
- */
-#define SAFE_SERIAL_PRINTF(format, ...) LOG_DEBUGF(format, ##__VA_ARGS__)
+// Legacy SAFE_SERIAL_* macros have been completely migrated to LOG_* system
 
 /** @} */ // end of Logging group
 
@@ -175,9 +159,36 @@
 #define WEBSOCKET_MAX_RETRY_ATTEMPTS 10
 /** @brief Timeout for detecting stale WebSocket connections (1 minute) */
 #define WEBSOCKET_MESSAGE_TIMEOUT 60000UL
-/** @brief Interval for WebSocket connection health checks (30 seconds) */
-#define WEBSOCKET_HEARTBEAT_INTERVAL 30000UL
 
 /** @} */ // end of WebSocket group
+
+/**
+ * @defgroup Charts Candlestick Chart Configuration
+ * @brief Configuration constants for candlestick chart rendering and interaction
+ * @{
+ */
+
+/** @brief Screen state enumeration for navigation between list and chart views */
+enum ScreenState {
+    LIST_SCREEN,    ///< Main cryptocurrency list display
+    DETAIL_SCREEN   ///< Individual coin detail view with candlestick chart
+};
+
+/** @brief Width of candlestick body in pixels */
+#define CANDLE_BODY_WIDTH 5
+/** @brief Width of candlestick wick in pixels */
+#define CANDLE_WICK_WIDTH 1
+/** @brief Height reserved for coin info at top of detail screen */
+#define COIN_INFO_HEIGHT 54  // Match first list item height
+/** @brief Padding around price range for better chart visibility (10%) */
+#define CHART_PRICE_PADDING 0.1f
+/** @brief Maximum number of candlesticks to fetch and display */
+#define MAX_CANDLESTICKS 50
+/** @brief Maximum number of cryptocurrency pairs supported */
+#define MAX_COINS 10
+/** @brief Minimum touch debounce interval in milliseconds */
+#define TOUCH_DEBOUNCE_MS 500
+
+/** @} */ // end of Charts group
 
 #endif // CONSTANTS_H

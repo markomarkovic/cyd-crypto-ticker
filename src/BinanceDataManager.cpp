@@ -1,8 +1,10 @@
 #include "BinanceDataManager.h"
+#include "NetworkManager.h"
 #include "constants.h"
+#include <ArduinoJson.h>
 
 BinanceDataManager::BinanceDataManager() 
-    : coin_count_(0) {
+    : coin_count_(0), candlestick_count_(0), candlestick_last_update_(0), symbols_shown_(false) {
     // Initialize coin data array
     for (int i = 0; i < MAX_COINS; i++) {
         coin_data_[i].valid = false;
@@ -11,6 +13,21 @@ BinanceDataManager::BinanceDataManager()
         coin_data_[i].change_24h = 0.0;
         coin_data_[i].change_percent_24h = 0.0;
     }
+    
+    // Initialize candlestick data array
+    for (int i = 0; i < MAX_CANDLESTICKS; i++) {
+        candlestick_data_[i].valid = false;
+        candlestick_data_[i].timestamp = 0;
+        candlestick_data_[i].open = 0.0;
+        candlestick_data_[i].high = 0.0;
+        candlestick_data_[i].low = 0.0;
+        candlestick_data_[i].close = 0.0;
+        candlestick_data_[i].volume = 0.0;
+    }
+}
+
+BinanceDataManager::~BinanceDataManager() {
+    // Destructor - no cleanup needed for synchronous implementation
 }
 
 void BinanceDataManager::parseSymbols(const char* symbols) {
@@ -57,11 +74,11 @@ void BinanceDataManager::parseSymbols(const char* symbols) {
         coin_count_++;
     }
 
-    SAFE_SERIAL_PRINTF("Parsed %d symbols: ", coin_count_);
+    LOG_DEBUGF("Parsed %d symbols: ", coin_count_);
     for (int i = 0; i < coin_count_; i++) {
-        SAFE_SERIAL_PRINTF("%s ", symbols_[i].c_str());
+        LOG_DEBUGF("%s ", symbols_[i].c_str());
     }
-    SAFE_SERIAL_PRINTLN();
+    LOG_DEBUG();
 }
 
 const String* BinanceDataManager::getSymbols() const {
@@ -81,17 +98,21 @@ int BinanceDataManager::getCoinCount() const {
 }
 
 void BinanceDataManager::updateCoinData(const String& symbol, float price, float change24h, float changePercent24h) {
-    SAFE_SERIAL_PRINTF("Searching for symbol: '%s'\n", symbol.c_str());
-    SAFE_SERIAL_PRINTF("Available symbols: ");
-    for (int i = 0; i < coin_count_; i++) {
-        SAFE_SERIAL_PRINTF("'%s' ", symbols_[i].c_str());
+    // Show available symbols only once after reconnection
+    if (!symbols_shown_) {
+        String symbols_list = "Available symbols: ";
+        for (int i = 0; i < coin_count_; i++) {
+            symbols_list += symbols_[i];
+            if (i < coin_count_ - 1) symbols_list += " ";
+        }
+        LOG_DEBUG(symbols_list);
+        symbols_shown_ = true;
     }
-    SAFE_SERIAL_PRINTLN();
     
     int index = findCoinIndex(symbol);
     if (index == -1) {
         // Symbol not found in our list
-        SAFE_SERIAL_PRINTF("Symbol '%s' not found in configured list!\n", symbol.c_str());
+        LOG_DEBUGF("Symbol '%s' not found in configured list!\n", symbol.c_str());
         return;
     }
     
@@ -108,8 +129,8 @@ void BinanceDataManager::updateCoinData(const String& symbol, float price, float
         clearError();
     }
     
-    SAFE_SERIAL_PRINTF("Updated %s: $%.2f (%.2f%%)\n", 
-                  symbol.c_str(), price, changePercent24h);
+    LOG_DEBUGF("%s: %.2f / %+.2f / %+.2f%%", 
+                  symbol.c_str(), price, change24h, changePercent24h);
 }
 
 bool BinanceDataManager::hasValidData() const {
@@ -139,43 +160,18 @@ int BinanceDataManager::getValidCoinCount() const {
     return count;
 }
 
-String BinanceDataManager::formatPrice(float price) const {
-    // Format price with comma separators for better readability
-    String price_str = String(price, 2);
-
-    // Find the decimal point
-    int decimal_pos = price_str.indexOf('.');
-    if (decimal_pos == -1)
-        decimal_pos = price_str.length();
-
-    // Add commas from right to left in the integer part
-    String result = "";
-    int digits_count = 0;
-
-    // Process integer part (before decimal)
-    for (int i = decimal_pos - 1; i >= 0; i--) {
-        if (digits_count > 0 && digits_count % 3 == 0) {
-            result = "," + result;
-        }
-        result = price_str.charAt(i) + result;
-        digits_count++;
-    }
-
-    // Add decimal part if it exists
-    if (decimal_pos < price_str.length()) {
-        result += price_str.substring(decimal_pos);
-    }
-
-    return result;
-}
 
 void BinanceDataManager::clearError() {
     last_error_message_ = "";
 }
 
+void BinanceDataManager::resetSymbolsDisplay() {
+    symbols_shown_ = false;
+}
+
 void BinanceDataManager::setError(const String& error) {
     last_error_message_ = error;
-    SAFE_SERIAL_PRINTF("CryptoDataManager error: %s\n", error.c_str());
+    LOG_DEBUGF("CryptoDataManager error: %s\n", error.c_str());
 }
 
 int BinanceDataManager::findCoinIndex(const String& symbol) const {
@@ -212,3 +208,113 @@ String BinanceDataManager::generateCoinName(const String& symbol) const {
     
     return symbol;
 }
+
+
+const CandlestickData* BinanceDataManager::getCandlestickData() const {
+    return candlestick_data_;
+}
+
+int BinanceDataManager::getCandlestickCount() const {
+    return candlestick_count_;
+}
+
+bool BinanceDataManager::hasCandlestickData() const {
+    return candlestick_count_ > 0 && !candlestick_symbol_.isEmpty();
+}
+
+String BinanceDataManager::getCurrentCandlestickSymbol() const {
+    return candlestick_symbol_;
+}
+
+String BinanceDataManager::getCurrentCandlestickInterval() const {
+    return candlestick_interval_;
+}
+
+bool BinanceDataManager::parseCandlestickJson(const String& payload) {
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, payload);
+    
+    if (error) {
+        LOG_ERROR("JSON parsing failed: " + String(error.c_str()));
+        setError("Chart data parsing failed");
+        return false;
+    }
+    
+    if (!doc.is<JsonArray>()) {
+        LOG_ERROR("Response is not a JSON array");
+        setError("Invalid chart data format");
+        return false;
+    }
+    
+    JsonArray klines = doc.as<JsonArray>();
+    candlestick_count_ = 0;
+    
+    // Parse each kline entry
+    for (JsonArray kline : klines) {
+        if (candlestick_count_ >= MAX_CANDLESTICKS) {
+            LOG_WARN("Reached maximum candlestick limit");
+            break;
+        }
+        
+        if (kline.size() >= 6) {  // Binance klines have at least 6 elements
+            candlestick_data_[candlestick_count_].timestamp = kline[0].as<unsigned long>();
+            candlestick_data_[candlestick_count_].open = kline[1].as<float>();
+            candlestick_data_[candlestick_count_].high = kline[2].as<float>();
+            candlestick_data_[candlestick_count_].low = kline[3].as<float>();
+            candlestick_data_[candlestick_count_].close = kline[4].as<float>();
+            candlestick_data_[candlestick_count_].volume = kline[5].as<float>();
+            candlestick_data_[candlestick_count_].valid = true;
+            candlestick_count_++;
+        }
+    }
+    
+    LOG_DEBUG("Parsed " + String(candlestick_count_) + " candlesticks");
+    return candlestick_count_ > 0;
+}
+
+bool BinanceDataManager::fetchCandlestickDataSync(const String& symbol, const String& interval, int limit, NetworkManager& network_manager) {
+    // Validate symbol format (should be like BTCUSDT)
+    if (symbol.isEmpty() || !symbol.endsWith("USDT")) {
+        setError("Invalid symbol format");
+        return false;
+    }
+    
+    // Limit the number of candlesticks to prevent memory issues
+    if (limit > MAX_CANDLESTICKS) {
+        limit = MAX_CANDLESTICKS;
+    }
+    
+    // Build URL for Binance API
+    String url = "https://api.binance.com/api/v3/klines?symbol=" + symbol + 
+                 "&interval=" + interval + "&limit=" + String(limit);
+    
+    LOG_INFO("Starting sync fetch of candlestick data for " + symbol + " (" + interval + ", " + String(limit) + " candles)...");
+    LOG_DEBUG("Free heap before HTTPS request: " + String(ESP.getFreeHeap()) + " bytes");
+    
+    // Make synchronous HTTPS request
+    String response;
+    int http_code;
+    bool success = network_manager.httpGet(url, "", response, http_code);
+    
+    if (!success) {
+        String error_msg = "HTTP request failed with code: " + String(http_code);
+        setError(error_msg);
+        LOG_ERROR("Sync candlestick fetch failed: " + error_msg);
+        return false;
+    }
+    
+    // Parse the JSON response
+    if (parseCandlestickJson(response)) {
+        candlestick_last_update_ = millis();
+        candlestick_interval_ = interval; // Store the interval for display
+        clearError();
+        LOG_INFO("Sync candlestick data fetch completed successfully (" + String(candlestick_count_) + " candles)");
+        return true;
+    } else {
+        setError("Failed to parse candlestick data from API");
+        LOG_ERROR("Sync candlestick fetch failed: JSON parsing error");
+        return false;
+    }
+}
+
+

@@ -13,6 +13,59 @@
 #define BINANCE_DATA_MANAGER_H
 
 #include <Arduino.h>
+#include "constants.h"
+
+// Forward declarations
+class NetworkManager;
+
+/**
+ * @struct CandlestickData
+ * @brief Structure to hold OHLCV (Open, High, Low, Close, Volume) candlestick data
+ * 
+ * Contains candlestick chart data for a specific time period, typically used
+ * for displaying price action over time in chart format. Each candlestick represents
+ * price movement during a fixed time interval (1m, 5m, 1h, 1d, etc.).
+ * 
+ * @note All price values are in the quote currency (typically USDT)
+ * @note Timestamp is Unix timestamp in milliseconds from Binance API
+ * @note Volume represents trading volume during the time period
+ */
+struct CandlestickData {
+    /**
+     * @brief Timestamp of the candlestick period (Unix timestamp in milliseconds)
+     */
+    unsigned long timestamp;
+    
+    /**
+     * @brief Opening price at the start of the time period
+     */
+    float open;
+    
+    /**
+     * @brief Highest price during the time period
+     */
+    float high;
+    
+    /**
+     * @brief Lowest price during the time period
+     */
+    float low;
+    
+    /**
+     * @brief Closing price at the end of the time period
+     */
+    float close;
+    
+    /**
+     * @brief Trading volume during the time period
+     */
+    float volume;
+    
+    /**
+     * @brief Flag indicating if this candlestick data is valid
+     */
+    bool valid;
+};
 
 /**
  * @struct CoinData
@@ -79,10 +132,6 @@ struct CoinData {
  */
 class BinanceDataManager {
 public:
-    /**
-     * @brief Maximum number of cryptocurrency pairs supported
-     */
-    static const int MAX_COINS = 10;
     
     /**
      * @brief Constructor initializes empty data arrays and counters
@@ -90,9 +139,9 @@ public:
     BinanceDataManager();
     
     /**
-     * @brief Default destructor
+     * @brief Destructor - ensures proper cleanup of HTTP fetch task
      */
-    ~BinanceDataManager() = default;
+    ~BinanceDataManager();
     
     // Symbol management
     /**
@@ -178,17 +227,55 @@ public:
      */
     int getValidCoinCount() const;
     
-    // Utility
+    // Candlestick chart data management
     /**
-     * @brief Format price value for display with comma separators
+     * @brief Synchronously fetch candlestick chart data for a trading pair
      * 
-     * Formats floating-point price values with appropriate decimal places
-     * and comma separators for thousands (e.g., "1,234.56").
+     * Fetches historical OHLCV data from Binance API with WebSocket paused
+     * for memory management. Blocks until complete or failed.
      * 
-     * @param price Price value to format
-     * @return Formatted price string
+     * @param symbol Trading pair symbol (e.g., "BTCUSDT")
+     * @param interval Time interval for candlesticks (e.g., "1h", "4h", "1d")
+     * @param limit Number of candlesticks to fetch (max 100)
+     * @param network_manager NetworkManager reference for HTTP requests
+     * @return true if fetch completed successfully, false on error
      */
-    String formatPrice(float price) const;
+    bool fetchCandlestickDataSync(const String& symbol, const String& interval, int limit, NetworkManager& network_manager);
+    
+    /**
+     * @brief Get array of candlestick data
+     * 
+     * @return Pointer to array of CandlestickData structures
+     */
+    const CandlestickData* getCandlestickData() const;
+    
+    /**
+     * @brief Get number of valid candlesticks in the array
+     * 
+     * @return Number of candlesticks with valid data
+     */
+    int getCandlestickCount() const;
+    
+    /**
+     * @brief Check if candlestick data is available and recent
+     * 
+     * @return true if candlestick data exists and is not stale
+     */
+    bool hasCandlestickData() const;
+    
+    /**
+     * @brief Get symbol for which candlestick data was last fetched
+     * 
+     * @return Trading pair symbol of current candlestick data
+     */
+    String getCurrentCandlestickSymbol() const;
+    
+    /**
+     * @brief Get time interval for current candlestick data
+     * 
+     * @return Time interval string (e.g., "1h", "4h", "1d")
+     */
+    String getCurrentCandlestickInterval() const;
     
     // Error management
     /**
@@ -197,6 +284,11 @@ public:
      * @param error Error description string
      */
     void setError(const String& error);
+    
+    /**
+     * @brief Reset the symbols display flag to show symbols on next reconnection
+     */
+    void resetSymbolsDisplay();
     
 private:
     /**
@@ -215,9 +307,39 @@ private:
     int coin_count_;
     
     /**
+     * @brief Array of candlestick data for chart display
+     */
+    CandlestickData candlestick_data_[MAX_CANDLESTICKS];
+    
+    /**
+     * @brief Number of valid candlesticks in the array
+     */
+    int candlestick_count_;
+    
+    /**
+     * @brief Symbol for which candlestick data was last fetched
+     */
+    String candlestick_symbol_;
+    
+    /**
+     * @brief Timestamp when candlestick data was last fetched
+     */
+    unsigned long candlestick_last_update_;
+    
+    /**
+     * @brief Time interval for candlestick data (e.g., "1h", "4h", "1d")
+     */
+    String candlestick_interval_;
+    
+    /**
      * @brief Last error message for debugging
      */
     String last_error_message_;
+    
+    /**
+     * @brief Flag to track if symbols have been shown after reconnection
+     */
+    bool symbols_shown_;
     
     /**
      * @brief Clear any existing error condition
@@ -242,6 +364,18 @@ private:
      * @return Human-readable coin name
      */
     String generateCoinName(const String& symbol) const;
+    
+    /**
+     * @brief Parse Binance klines JSON response into candlestick data
+     * 
+     * Processes the JSON array response from Binance /api/v3/klines endpoint
+     * and populates the internal candlestick_data_ array.
+     * 
+     * @param payload JSON response string from Binance API
+     * @return true if parsing was successful, false on error
+     */
+    bool parseCandlestickJson(const String& payload);
+    
 };
 
 #endif // BINANCE_DATA_MANAGER_H

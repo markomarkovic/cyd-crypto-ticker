@@ -8,15 +8,20 @@ This is a **real-time cryptocurrency price display application** for ESP32-based
 
 ### Key Features
 
+- **Advanced Candlestick Charts**: Interactive OHLCV charts with real-time data from Binance API
+- **Technical Analysis**: 7-period moving averages with smooth line rendering
+- **Interactive Price Inspection**: Click-to-show-price with blue indicator line and precise price display
 - **Real-time WebSocket Integration**: Live cryptocurrency price updates from Binance WebSocket API (no API key required)
+- **Dual Data Sources**: WebSocket for real-time prices + REST API for historical candlestick data
 - **Connection Management**: Automatic WebSocket reconnection with exponential backoff and visual status indicators
+- **Professional Chart Features**: Highest/lowest point indicators, optimal screen space utilization (~31 candles)
 - **Modern LVGL Interface**: Touchscreen GUI with color-coded trend indicators and muted colors for disconnected state
 - **Multi-currency Support**: Up to 6 simultaneous cryptocurrency pairs with automatic uppercase conversion
 - **RGB LED Status Indicators**: Visual connection status (red=disconnected, yellow=reconnecting, green=connected)
 - **Hardware Integration**: Automatic brightness control and BOOT button configuration reset
 - **Standardized Logging**: Configurable log levels (TRACE, DEBUG, INFO, WARN, ERROR, FATAL) with serial timeout protection
 - **Board Compatibility**: Works with 40+ different Sunton ESP32 display board variants
-- **Power Optimization**: Memory and size optimizations for battery operation
+- **Memory-Safe Implementation**: Proper LVGL object lifecycle management preventing crashes
 - **Fixed Layout**: Clean, scrollbar-free interface perfectly sized for 320px screen height
 
 ## Build and Development Commands
@@ -63,6 +68,7 @@ The project uses a built-in web interface for configuration:
 - **Persistent Storage**: Settings saved to ESP32 flash memory
 - **Factory Reset**: Hold BOOT button for 10+ seconds to clear all configuration
 - **Reconfiguration**: Hold BOOT button for 5-9 seconds to restart configuration mode
+- **Cancel Configuration**: Short press (< 5 seconds) BOOT button during configuration mode to cancel and return to normal operation
 
 #### Web Interface Features
 
@@ -78,7 +84,7 @@ The project uses a built-in web interface for configuration:
 - **Disconnected**: Continuous red blinking (500ms on/off)
 - **Reconnecting**: Continuous yellow blinking (300ms on/off)
 - **Connected**: 3 rapid green blinks (100ms on/off), then resume normal operation
-- **Normal Operation**: Standard brightness-based LED behavior
+- **Normal Operation**: Solid green when majority of coins are up, solid red when majority are down, off when balanced
 
 **Display Visual Feedback:**
 
@@ -129,6 +135,47 @@ The application displays exactly 6 cryptocurrency pairs in a clean, fixed-height
 - **No scrolling**: Fixed display for exactly 6 items
 - **No separators**: Clean, continuous display
 - **Background colors**: Green tint for positive 24h change, red tint for negative 24h change
+
+### Interactive Candlestick Chart View
+
+Touching any cryptocurrency in the list view switches to a detailed candlestick chart with the following features:
+
+#### Chart Display Elements:
+
+**Coin Information Header (54px height):**
+
+- Same layout as list view items with real-time WebSocket updates
+
+**Candlestick Chart Area (266px height):**
+
+- **Chart Data**: Up to ~31 visible candlesticks optimally spaced for 240px width
+- **Time Interval**: 1-hour candles fetched from Binance Klines API
+- **OHLCV Display**: Open/High/Low/Close prices with volume data
+- **Candle Styling**: Rectangular bodies (no rounded corners) with matching wick colors
+- **Moving Average**: 7-period smooth moving average line overlay
+- **Price Range**: Automatic scaling with 5% padding for optimal visibility
+
+**Chart Labels & Indicators:**
+
+- **Price Labels**: Min/max price labels in top/bottom-right corners (14pt font)
+- **Timestamp**: Oldest visible candle date in bottom-left corner
+- **Highest/Lowest Points**: White lines extending from extreme values to screen edges
+- **Extended View**: 1-2 additional candles past left edge for historical context
+
+**Interactive Features:**
+
+- **Click-to-Show-Price**: Touch anywhere on chart to display price at clicked height
+- **Price Indicator**: Blue horizontal line (50px) at exact click coordinates
+- **Price Display**: Calculated price shown in top-left corner with dark background
+- **Real-time Updates**: Coin info updates live via WebSocket while viewing chart
+- **Return Navigation**: Touch coin info area to return to main list view
+
+#### Technical Implementation:
+
+- **Data Source**: Binance REST API for historical candlestick data (40 candles fetched)
+- **Memory Optimization**: Efficient LVGL object management preventing crashes
+- **Error Handling**: Automatic fallback to test data if API calls fail
+- **Performance**: Sub-3-second chart load times with proper caching
 
 ## Architecture Overview
 
@@ -182,8 +229,11 @@ platformio.ini                  - Build configuration and board selection
 - **Color Depth**: 16-bit RGB565 for optimal ESP32 performance
 - **Memory**: 32KB heap allocation for graphics operations
 - **Refresh Rate**: 33ms display refresh (30 FPS)
-- **Features Enabled**: All major LVGL widgets, themes, and layouts
-- **Performance Monitoring**: CPU/memory usage displays available
+- **Optimized Configuration**: Pruned LVGL build with only essential features enabled
+- **Memory Efficient**: Disabled unused widgets, themes, GPU acceleration, and advanced layouts
+- **Flash Savings**: ~11KB reduction from standard LVGL configuration
+
+**Note**: The LVGL configuration (`include/lv_conf.h`) has been optimized for this specific cryptocurrency ticker application. Many widgets, themes, and advanced features have been disabled to reduce memory usage and flash size. If you need additional LVGL features for modifications, you can re-enable them in `lv_conf.h` by changing the corresponding `#define` from `0` to `1`.
 
 ### Configuration Architecture
 
@@ -210,13 +260,11 @@ platformio.ini                  - Build configuration and board selection
 ### Hardware Features
 
 - **Display**: 240x320 pixel TFT with automatic brightness control
-- **Touch Input**: Resistive touchscreen (currently unused, WebSocket provides real-time updates)
-- **RGB LED**: Connection status indicators with specific patterns:
-  - Red blinking (500ms): WebSocket disconnected
-  - Yellow blinking (300ms): WebSocket reconnecting
-  - Green 3x blinks (100ms): WebSocket connected
-  - Normal operation: Green/red based on cryptocurrency performance
-- **Light Sensor**: Automatic backlight adjustment based on ambient light
+- **Touch Input**: Resistive touchscreen for chart interaction and navigation
+- **RGB LED**: Status indicators with specific patterns:
+  - Connection status: Red blinking (disconnected), yellow blinking (reconnecting), green 3x blinks (connected)
+  - Market status: Solid green (majority coins up), solid red (majority coins down), off (balanced)
+- **Light Sensor**: Automatic display brightness adjustment based on ambient light (separate from LED status)
 - **BOOT Button**: Configuration management (5s=reconfigure, 10s=factory reset)
 - **Audio**: Speaker output available (GPIO 26)
 - **Storage**: MicroSD card slot support
@@ -232,18 +280,29 @@ platformio.ini                  - Build configuration and board selection
 
 ### Memory Considerations
 
-- ESP32 has ~315KB usable RAM after boot (24.6% usage with current implementation)
-- LVGL uses 32KB for graphics operations
-- WebSocket connection adds minimal memory overhead
-- Real-time updates eliminate need for data caching, reducing memory usage
+- ESP32 has ~315KB usable RAM after boot (25.1% usage with current implementation including charts)
+- LVGL uses 32KB for graphics operations plus additional memory for chart rendering
+- WebSocket + REST API connections managed efficiently with proper cleanup
+- Candlestick data cached in memory (max 50 candles per symbol)
+- Interactive chart elements use memory-safe LVGL object lifecycle management
 
-### Real-time Architecture Benefits
+### Dual Data Source Architecture Benefits
 
-- **No Polling**: WebSocket eliminates periodic API requests
+**WebSocket Stream (Real-time Prices):**
+
+- **No Polling**: WebSocket eliminates periodic API requests for live prices
 - **Instant Updates**: Price changes appear immediately on display
-- **Power Efficient**: Reduces WiFi activity and CPU usage
+- **Power Efficient**: Reduces WiFi activity and CPU usage for price updates
 - **Connection Resilient**: Automatic reconnection handles network interruptions
 - **Visual Feedback**: Always know connection status through LED and display
+
+**REST API (Historical Data):**
+
+- **Chart Data**: Binance Klines API provides OHLCV candlestick data
+- **On-Demand Fetching**: Historical data loaded only when viewing chart details
+- **Memory Efficient**: HTTPS requests with insecure mode to reduce RAM usage
+- **Fallback Support**: Automatic fallback to test data if API calls fail
+- **Optimized Requests**: Fetches exact number of candles needed for display
 
 ### Debugging and Logging
 
@@ -302,10 +361,12 @@ The utility outputs valid trading pair symbols that can be entered in the web co
 
 **DO NOT MODIFY**: Never modify, read, or interact with the `.pio/libdeps/` directory or any files within it. This directory contains compiled library dependencies managed by PlatformIO and should not be touched by Claude Code.
 
-**REAL-TIME ARCHITECTURE**:
+**DUAL DATA ARCHITECTURE**:
 
 - **WebSocket Integration**: Direct connection to Binance WebSocket API for live price feeds
-- **No API Keys Required**: Uses free Binance WebSocket streams
+- **REST API Integration**: Binance Klines API for historical candlestick chart data
+- **No API Keys Required**: Uses free Binance public APIs (both WebSocket and REST)
+- **Interactive Charts**: Touch-enabled candlestick charts with technical analysis features
 - **Automatic Reconnection**: Exponential backoff strategy handles network interruptions
 - **Connection Status**: RGB LED indicators and muted display colors show connection state
 - **Configuration**: Web interface for WiFi and cryptocurrency pair selection
@@ -315,15 +376,18 @@ The utility outputs valid trading pair symbols that can be entered in the web co
 
 - **Standardized Levels**: TRACE, DEBUG, INFO, WARN, ERROR, FATAL with configurable output
 - **Serial Safety**: Timeout protection prevents display freezing when monitor disconnected
-- **Backward Compatibility**: `SAFE_SERIAL_*` macros preserved (map to `LOG_DEBUG`)
+- **Migration Complete**: All `SAFE_SERIAL_*` macros have been migrated to `LOG_*` system
 - **Development**: Adjust `CURRENT_LOG_LEVEL` in `constants.h` for debugging verbosity
+- **System Monitoring**: Set log level to DEBUG or lower to display system statistics (uptime, memory usage, connection status) every 30 seconds
 
 **ARCHITECTURE PRINCIPLES**:
 
-- **Real-time First**: WebSocket integration provides instant price updates
+- **Dual Data Strategy**: WebSocket for real-time prices + REST API for historical charts
+- **Interactive Design**: Touch-enabled candlestick charts with price inspection features
 - **Connection Resilience**: Automatic reconnection with visual status feedback
-- **User Experience**: Clear status indicators and muted colors for disconnected state
-- **Power Efficiency**: No polling, optimized memory usage, adaptive brightness
+- **User Experience**: Clear status indicators, muted colors for disconnected state, professional chart UI
+- **Memory Safety**: Proper LVGL object lifecycle management preventing crashes
+- **Power Efficiency**: Optimized API usage, memory management, adaptive brightness
 - **Hardware Integration**: RGB LED patterns, BOOT button configuration management
 - **Robust Logging**: Standardized log levels with serial timeout protection
 

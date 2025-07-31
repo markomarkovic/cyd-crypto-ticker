@@ -11,35 +11,18 @@ A real-time cryptocurrency price display application for ESP32-based "Cheap Yell
 - **Hardware Integration**: RGB LED status indicators and automatic brightness adjustment
 - **WiFi Connectivity**: Automatic connection management with retry logic
 - **Multi-Board Support**: Compatible with 40+ different Sunton ESP32 display variants
-- **Power Efficient**: Optimized for battery operation with sleep modes
+- **Memory Efficient**: Optimized for ESP32's limited RAM with 25% usage (82KB/327KB)
 
 ## 🛠️ Hardware Requirements
 
 ### Supported Boards
 
+This project should supports all Sunton ESP32 display boards, you can check the [boards documentation](https://github.com/rzeldent/platformio-espressif32-sunton/blob/main/README.md).
+
 - **Primary Target**: ESP32-2432S028R (CYD - Cheap Yellow Display)
 - **Display**: 240x320 ILI9341 TFT with SPI interface
 - **Touch**: XPT2046 resistive touchscreen controller
 - **Additional Hardware**: RGB LED, CdS light sensor, speaker output, TF card slot
-
-### Complete Compatibility List
-
-This project supports all Sunton ESP32 display boards including:
-
-- ESP32-1732S019C/N (1.9" round display)
-- ESP32-2424S012C/N (1.2" square display)
-- ESP32-2432S022C/N (2.2" display)
-- ESP32-2432S024C/N/R (2.4" display)
-- ESP32-2432S028R/Rv2/Rv3 (2.8" CYD display)
-- ESP32-2432S032C/N/R (3.2" display)
-- ESP32-3248S035C/R (3.5" display)
-- ESP32-4827S043C/N/R (4.3" display)
-- ESP32-4848S040CIY1/CIY3 (4.0" square display)
-- ESP32-8048S043C/N/R (4.3" high-res display)
-- ESP32-8048S050C/N/R (5.0" display)
-- ESP32-8048S070C/N/R (7.0" display)
-- ESP32-8048S550C (5.5" display)
-- ESP32-S3 Touch LCD variants
 
 ## 📦 Installation
 
@@ -125,28 +108,6 @@ Available board models are listed in the `boards/` directory.
 
 The default orientation is portrait (240x320). To change to landscape mode, modify the rotation settings in your display configuration.
 
-### Code Examples
-
-#### Basic Setup
-
-```cpp
-#include <Arduino.h>
-#include <lvgl.h>
-#include "ApplicationController.h"
-
-ApplicationController* app_controller;
-
-void setup() {
-    app_controller = new ApplicationController();
-    app_controller->initialize();
-}
-
-void loop() {
-    app_controller->update();
-    lv_timer_handler();
-}
-```
-
 #### Web Configuration Interface
 
 The application provides a built-in web interface for configuration:
@@ -156,6 +117,14 @@ The application provides a built-in web interface for configuration:
 3. **Settings**: Configure WiFi credentials and select up to 6 Binance USDT trading pairs
 4. **Save & Restart**: Settings are saved and the device connects to your WiFi network
 
+#### Button Controls
+
+The BOOT button provides several configuration options:
+
+- **Short Press (< 5 seconds)**: Cancel configuration mode and return to normal operation
+- **Medium Press (5-9 seconds)**: Enter configuration mode to change WiFi/crypto settings
+- **Long Press (10+ seconds)**: Factory reset - clear all stored data
+
 ## 🔧 Development
 
 ### Project Structure
@@ -164,7 +133,7 @@ The application provides a built-in web interface for configuration:
 ├── src/                           # Main application source code
 │   ├── main.cpp                   # Application entry point
 │   ├── ApplicationController.cpp  # Main app controller
-│   ├── CryptoDataManager.cpp      # API data handling
+│   ├── BinanceDataManager.cpp     # Cryptocurrency data handling
 │   ├── NetworkManager.cpp         # WiFi and web config management
 │   ├── DisplayManager.cpp         # LVGL UI management
 │   └── HardwareController.cpp     # Hardware control and sensors
@@ -172,23 +141,25 @@ The application provides a built-in web interface for configuration:
 │   ├── lv_conf.h                  # LVGL configuration
 │   └── constants.h                # Hardware constants, colors, and timing intervals
 ├── boards/                        # Hardware board definitions (submodule)
-├── find_coin_id.py                # Utility to find cryptocurrency IDs
+├── find_binance_symbols.py        # Utility to find Binance trading pairs
 └── platformio.ini                 # Build configuration
 ```
 
 ### Key Components
 
-- **ApplicationController**: Main application lifecycle management
-- **BinanceDataManager**: Handles real-time data from Binance WebSocket API
+- **ApplicationController**: Main application lifecycle management and WebSocket coordination
+- **BinanceDataManager**: Real-time cryptocurrency data management and chart data fetching
 - **NetworkManager**: WiFi connection, web configuration interface, and reconnection logic
-- **DisplayManager**: LVGL-based user interface management using constants from constants.h
-- **HardwareController**: RGB LED and sensor management using hardware pin constants
+- **DisplayManager**: LVGL-based user interface and chart rendering using constants from constants.h
+- **HardwareController**: RGB LED status indicators and sensor management using hardware pin constants
+- **WebSocketManager**: Real-time WebSocket connections to Binance API with automatic reconnection
 
 ### Configuration Architecture
 
-- **Hardware Constants**: Pin definitions, colors, and timing intervals defined in `include/constants.h`
-- **User Configuration**: API keys and cryptocurrency selections managed through web interface
+- **Hardware Constants**: Pin definitions, colors, timing intervals, and system limits defined in `include/constants.h`
+- **User Configuration**: WiFi credentials and cryptocurrency selections managed through web interface
 - **Settings Storage**: User configurations stored in ESP32 flash memory via NetworkManager
+- **Unified Constants**: All system limits (MAX_COINS, MAX_CANDLESTICKS) centralized in constants.h for consistency
 
 ### Build Commands
 

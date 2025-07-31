@@ -53,6 +53,9 @@ void ApplicationController::initialize() {
 void ApplicationController::update() {
     state_manager_->updateLVGLTick();
     
+    // Display system statistics when INFO level logging is enabled
+    displaySystemStats();
+    
     switch (state_manager_->getAppState()) {
         case ApplicationStateManager::AppState::AP_MODE:
             handleAPMode();
@@ -90,7 +93,7 @@ void ApplicationController::initializeHardware() {
 bool ApplicationController::attemptWiFiConnection() {
     // Check if reconfiguration was requested
     if (network_manager_->isReconfigurationRequested()) {
-        SAFE_SERIAL_PRINTLN("Reconfiguration requested - forcing AP mode");
+        LOG_DEBUG("Reconfiguration requested - forcing AP mode");
         return false;
     }
     
@@ -98,14 +101,14 @@ bool ApplicationController::attemptWiFiConnection() {
     bool has_stored_config = network_manager_->loadStoredWiFiConfig(stored_ssid, stored_password);
     
     if (has_stored_config) {
-        SAFE_SERIAL_PRINT("Found stored WiFi credentials. SSID: ");
-        SAFE_SERIAL_PRINTLN(stored_ssid);
+        LOG_DEBUG("Found stored WiFi credentials. SSID: ");
+        LOG_DEBUG(stored_ssid);
         
         display_manager_->showConnectingMessage("Connecting to WiFi:\n" + stored_ssid);
         return network_manager_->connect(stored_ssid.c_str(), stored_password.c_str(), 20000);
     }
     
-    SAFE_SERIAL_PRINTLN("No stored WiFi credentials found");
+    LOG_DEBUG("No stored WiFi credentials found");
     return false;
 }
 
@@ -114,10 +117,10 @@ void ApplicationController::startAPModeWithScan() {
     
     bool scan_success = network_manager_->scanWiFiNetworks();
     if (!scan_success) {
-        SAFE_SERIAL_PRINTLN("WiFi scan failed, but continuing with AP mode");
+        LOG_DEBUG("WiFi scan failed, but continuing with AP mode");
     }
     
-    SAFE_SERIAL_PRINTLN("Starting AP mode with pre-scanned networks");
+    LOG_DEBUG("Starting AP mode with pre-scanned networks");
     if (network_manager_->startAPMode()) {
         display_manager_->showAPModeScreen(network_manager_->getAPSSID());
     } else {
@@ -126,16 +129,16 @@ void ApplicationController::startAPModeWithScan() {
 }
 
 void ApplicationController::performInitialSetup() {
-    SAFE_SERIAL_PRINTLN("");
-    SAFE_SERIAL_PRINT("Connected to WiFi! IP address: ");
-    SAFE_SERIAL_PRINTLN(network_manager_->getLocalIP());
+    LOG_DEBUG("");
+    LOG_DEBUG("Connected to WiFi! IP address: ");
+    LOG_DEBUG(network_manager_->getLocalIP());
     
     // Load symbols configuration and handle new configuration if available
     if (network_manager_->hasNewSymbolsConfig()) {
         String new_symbols = network_manager_->getNewSymbols();
         network_manager_->saveSymbolsConfig(new_symbols);
         network_manager_->clearNewSymbolsConfig();
-        SAFE_SERIAL_PRINTLN("New symbols configuration saved");
+        LOG_DEBUG("New symbols configuration saved");
     }
     
     // Load stored symbols configuration
@@ -169,7 +172,7 @@ void ApplicationController::handleAPMode() {
             state_manager_->setWiFiState(ApplicationStateManager::WiFiState::CONNECTED);
         } else {
             // Failed to connect, restart AP mode
-            SAFE_SERIAL_PRINTLN("Failed to connect with new credentials, restarting AP mode");
+            LOG_DEBUG("Failed to connect with new credentials, restarting AP mode");
             network_manager_->startAPMode();
             display_manager_->showAPModeScreen(network_manager_->getAPSSID());
         }
@@ -186,13 +189,36 @@ void ApplicationController::handleAPModeButtons() {
     // Check for button presses
     hardware_controller_->updateButtonStatus();
     
+    // Check for short press (cancel configuration)
+    if (hardware_controller_->isShortPressDetected()) {
+        LOG_DEBUG("Short button press detected in AP mode - canceling configuration and restarting...");
+        
+        // Clear the short press flag
+        hardware_controller_->clearShortPressDetected();
+        
+        // Visual feedback - flash blue LED 2 times to indicate cancel
+        for (int i = 0; i < 2; i++) {
+            hardware_controller_->setLED(false, false, true); // Blue
+            delay(150);
+            hardware_controller_->setLED(false, false, false); // Off
+            delay(150);
+        }
+        
+        // Clear reconfiguration flag so it will try to connect with stored credentials
+        network_manager_->clearReconfigurationFlag();
+        
+        LOG_DEBUG("Configuration canceled. Restarting...");
+        delay(1000);
+        ESP.restart();
+    }
+    
     // Check if reconfiguration was requested (5+ second press detected)
     if (hardware_controller_->isReconfigurationRequested()) {
         // Get the current button press time to check if it's a factory reset (10+ seconds)
         unsigned long button_press_time = hardware_controller_->getButtonPressTime();
         
         if (button_press_time >= 10000) { // 10 seconds - factory reset
-            SAFE_SERIAL_PRINTLN("Factory reset requested - clearing all stored data...");
+            LOG_DEBUG("Factory reset requested - clearing all stored data...");
             
             // Clear the button request to prevent repeated triggers
             hardware_controller_->clearReconfigurationRequest();
@@ -215,13 +241,13 @@ void ApplicationController::handleAPModeButtons() {
             // Perform factory reset
             network_manager_->factoryReset();
             
-            SAFE_SERIAL_PRINTLN("Factory reset complete. Restarting...");
+            LOG_DEBUG("Factory reset complete. Restarting...");
             delay(1000);
             ESP.restart();
             
         } else if (button_press_time == 0) {
             // Button was released before 10 seconds - this was just a 5-9 second press
-            SAFE_SERIAL_PRINTLN("Reconfiguration requested in AP mode - ignoring (already in config mode)");
+            LOG_DEBUG("Reconfiguration requested in AP mode - ignoring (already in config mode)");
             hardware_controller_->clearReconfigurationRequest();
         }
         // If button_press_time > 0 and < 10000, keep waiting for potential factory reset
@@ -233,10 +259,14 @@ void ApplicationController::handleNormalOperation() {
     if (!network_manager_->isConnected()) {
         if (!state_manager_->isWiFiDisconnected()) {
             state_manager_->startWiFiDisconnection();
-            SAFE_SERIAL_PRINTLN("WiFi disconnected - starting silent background reconnection");
+            LOG_DEBUG("WiFi disconnected - starting silent background reconnection");
             // Disconnect WebSocket when WiFi is lost
             if (websocket_manager_) {
                 websocket_manager_->disconnect();
+            }
+            // Reset symbols display flag so they will be shown on next reconnection
+            if (crypto_manager_) {
+                crypto_manager_->resetSymbolsDisplay();
             }
         }
         state_manager_->setAppState(ApplicationStateManager::AppState::WIFI_RECONNECTING);
@@ -245,7 +275,7 @@ void ApplicationController::handleNormalOperation() {
         // WiFi is connected - reset disconnection state if it was set
         if (state_manager_->isWiFiDisconnected()) {
             state_manager_->resetWiFiDisconnection();
-            SAFE_SERIAL_PRINTLN("WiFi connection restored");
+            LOG_DEBUG("WiFi connection restored");
             // Reconnect WebSocket when WiFi is restored
             String symbols;
             if (network_manager_->loadStoredSymbolsConfig(symbols)) {
@@ -260,8 +290,10 @@ void ApplicationController::handleNormalOperation() {
         websocket_manager_->processReconnection();
     }
     
+    
     updateLEDStatus();
     updateHardwareControls();
+    handleTouchEvents();
 }
 
 void ApplicationController::handleWiFiReconnection() {
@@ -273,7 +305,7 @@ void ApplicationController::handleWiFiReconnection() {
         last_reconnect_attempt = now;
         
         if (attemptSilentReconnection()) {
-            SAFE_SERIAL_PRINTLN("WiFi reconnected successfully!");
+            LOG_DEBUG("WiFi reconnected successfully!");
             state_manager_->resetWiFiDisconnection();
             
             // Update display with current crypto data - now handled by WebSocket callback
@@ -340,7 +372,7 @@ void ApplicationController::updateHardwareControls() {
     hardware_controller_->updateButtonStatus();
     
     if (hardware_controller_->isReconfigurationRequested()) {
-        SAFE_SERIAL_PRINTLN("Reconfiguration requested - setting persistent flag...");
+        LOG_DEBUG("Reconfiguration requested - setting persistent flag...");
         
         // Set reconfiguration flag instead of directly clearing WiFi config
         network_manager_->setReconfigurationRequested(true);
@@ -354,7 +386,7 @@ void ApplicationController::updateHardwareControls() {
             delay(200);
         }
         
-        SAFE_SERIAL_PRINTLN("Reconfiguration flag set. Restarting...");
+        LOG_DEBUG("Reconfiguration flag set. Restarting...");
         delay(1000);
         ESP.restart();
     }
@@ -374,7 +406,7 @@ bool ApplicationController::connectWithNewCredentials() {
     bool connected = network_manager_->connect(new_ssid.c_str(), new_password.c_str(), 20000);
     
     if (connected) {
-        SAFE_SERIAL_PRINTLN("Connected with new credentials!");
+        LOG_DEBUG("Connected with new credentials!");
         // Save the successful WiFi credentials
         network_manager_->saveWiFiConfig(new_ssid, new_password);
         // Clear reconfiguration flag since we successfully configured WiFi
@@ -388,7 +420,7 @@ bool ApplicationController::connectWithNewCredentials() {
 bool ApplicationController::attemptSilentReconnection() {
     String stored_ssid, stored_password;
     if (network_manager_->loadStoredWiFiConfig(stored_ssid, stored_password)) {
-        SAFE_SERIAL_PRINTLN("Attempting silent WiFi reconnection...");
+        LOG_DEBUG("Attempting silent WiFi reconnection...");
         return network_manager_->connect(stored_ssid.c_str(), stored_password.c_str(), 
                                        RECONNECTION_ATTEMPT_TIMEOUT_MS);
     }
@@ -397,7 +429,7 @@ bool ApplicationController::attemptSilentReconnection() {
 
 void ApplicationController::showReconnectionMessage() {
     state_manager_->setReconnectionMessageShown(true);
-    SAFE_SERIAL_PRINTLN("1 minute timeout reached - showing user reconnection message");
+    LOG_DEBUG("1 minute timeout reached - showing user reconnection message");
     
     String wifi_info = "WiFi connection lost\n";
     wifi_info += "Reconnecting in background...\n";
@@ -417,16 +449,16 @@ void ApplicationController::setupWebSocketConnection(const String& symbols) {
         return;
     }
     
-    SAFE_SERIAL_PRINTLN("Setting up WebSocket connection to Binance...");
+    LOG_DEBUG("Setting up WebSocket connection to Binance...");
     
     // Parse symbols into array for WebSocket manager
-    String symbols_array[10]; // Support up to 10 symbols
+    String symbols_array[MAX_COINS]; // Support up to MAX_COINS symbols
     int symbol_count = 0;
     String temp_symbols = symbols;
     temp_symbols.toUpperCase();
     
     // Split symbols by comma
-    while (temp_symbols.length() > 0 && symbol_count < 10) {
+    while (temp_symbols.length() > 0 && symbol_count < MAX_COINS) {
         int comma_pos = temp_symbols.indexOf(',');
         if (comma_pos == -1) {
             symbols_array[symbol_count] = temp_symbols;
@@ -444,17 +476,178 @@ void ApplicationController::setupWebSocketConnection(const String& symbols) {
         // Update crypto data in real-time
         crypto_manager_->updateCoinData(symbol, price, change24h, changePercent24h);
         
-        // Update display with new data
-        display_manager_->updateCryptoDisplay(*crypto_manager_, "", "", websocket_manager_ ? websocket_manager_->isConnected() : false);
+        // Update display based on current screen
+        if (display_manager_->getScreenState() == LIST_SCREEN) {
+            display_manager_->updateCryptoDisplay(*crypto_manager_, "", "", websocket_manager_ ? websocket_manager_->isConnected() : false);
+        } else if (display_manager_->getScreenState() == DETAIL_SCREEN) {
+            // Update coin info in detail view for real-time price updates
+            display_manager_->updateDetailCoinInfo(*crypto_manager_);
+        }
     });
     
     // Configure symbols and connect
     websocket_manager_->setSymbols(symbols_array, symbol_count);
     
     if (websocket_manager_->connect()) {
-        SAFE_SERIAL_PRINTLN("WebSocket connected successfully");
+        LOG_DEBUG("WebSocket connected successfully");
     } else {
-        SAFE_SERIAL_PRINTLN("Failed to connect to WebSocket");
+        LOG_DEBUG("Failed to connect to WebSocket");
         crypto_manager_->setError("WebSocket connection failed");
     }
 }
+
+void ApplicationController::handleTouchEvents() {
+    // Get touch input from LVGL
+    lv_indev_t* indev = lv_indev_get_next(NULL);
+    if (indev && lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER) {
+        lv_point_t point;
+        lv_indev_get_point(indev, &point);
+        lv_indev_state_t state = lv_indev_get_state(indev);
+        
+        // Handle touch press and release events differently
+        static bool touch_press_handled = false;
+        
+        if (state == LV_INDEV_STATE_PRESSED && !touch_press_handled) {
+            LOG_DEBUG("Touch press detected at (" + String(point.x) + ", " + String(point.y) + ")");
+            bool screen_changed = display_manager_->handleTouch(point.x, point.y, *crypto_manager_);
+            
+            if (screen_changed) {
+                touch_press_handled = true; // Prevent handling same press on new screen
+                static unsigned long last_chart_fetch = 0;
+                
+                if (display_manager_->getScreenState() == DETAIL_SCREEN) {
+                    // Switching to detail screen - detail screen is already shown, now fetch data
+                    unsigned long now = millis();
+                    if (now - last_chart_fetch > 1000) { // Prevent multiple fetches within 1 second
+                        LOG_INFO("Screen switched to detail view, fetching candlestick data...");
+                        fetchCandlestickDataForSelectedCoin();
+                        last_chart_fetch = now;
+                    } else {
+                        LOG_DEBUG("Ignoring duplicate chart fetch request (within 1 second)");
+                    }
+                } else {
+                    // Switching back to list screen - update main display
+                    LOG_INFO("Screen switched to list view");
+                    String sync_status = websocket_manager_ && websocket_manager_->isConnected() ? 
+                                       "Real-time updates active" : "Reconnecting...";
+                    display_manager_->updateCryptoDisplay(*crypto_manager_, "", sync_status, 
+                                                        websocket_manager_ ? websocket_manager_->isConnected() : false);
+                }
+            } else {
+                LOG_DEBUG("Touch handled but no screen change");
+            }
+        } else if (state == LV_INDEV_STATE_RELEASED) {
+            // Ignore spurious touch releases at (0, 0)
+            if (!(point.x == 0 && point.y == 0)) {
+                LOG_DEBUG("Touch released at (" + String(point.x) + ", " + String(point.y) + ")");
+            }
+            touch_press_handled = false; // Reset for next touch
+        } else if (state == LV_INDEV_STATE_PRESSED && touch_press_handled) {
+            LOG_DEBUG("Ignoring continued touch press (already handled screen transition)");
+        }
+    } else {
+        // Check if touch device is still available
+        static unsigned long last_touch_check = 0;
+        if (millis() - last_touch_check > 5000) { // Check every 5 seconds
+            if (!indev) {
+                LOG_ERROR("Touch input device not found!");
+            } else if (lv_indev_get_type(indev) != LV_INDEV_TYPE_POINTER) {
+                LOG_ERROR("Touch input device is not a pointer type!");
+            }
+            last_touch_check = millis();
+        }
+    }
+}
+
+/**
+ * @brief Fetches candlestick data for the currently selected cryptocurrency
+ * 
+ * Called when user switches to detail view to load historical price data
+ * for chart display. Implements duplicate request protection and proper
+ * error handling with fallback to cached data.
+ * 
+ * @note Only fetches data if not already in progress (thread safety)
+ * @note Fetches 40 candles to fill screen (~31 visible) plus moving average data
+ * @note Updates chart area directly without regenerating entire detail screen
+ */
+void ApplicationController::fetchCandlestickDataForSelectedCoin() {
+    int selected_coin = display_manager_->getSelectedCoinIndex();
+    const CoinData* coin_data = crypto_manager_->getCoinData();
+    int coin_count = crypto_manager_->getCoinCount();
+    
+    if (selected_coin < 0 || selected_coin >= coin_count || !coin_data[selected_coin].valid) {
+        LOG_ERROR("Invalid selected coin index: " + String(selected_coin));
+        return;
+    }
+    
+    String symbol = coin_data[selected_coin].symbol;
+    
+    // Pause WebSocket to free SSL memory for HTTPS request
+    if (websocket_manager_) {
+        websocket_manager_->pauseForMemoryCleanup();
+    }
+    
+    // Synchronously fetch candlestick data with WebSocket paused
+    // Screen fits ~31 candles, MA period is 7, so fetch 31 + 7 = 38 minimum
+    // Round up to 40 for a small buffer
+    bool fetch_success = crypto_manager_->fetchCandlestickDataSync(symbol, "1h", 40, *network_manager_);
+    
+    // Resume WebSocket connection after fetch completes
+    if (websocket_manager_) {
+        websocket_manager_->resumeAfterMemoryCleanup();
+    }
+    
+    if (fetch_success) {
+        LOG_INFO("Sync candlestick data fetch completed for " + symbol + " - updating chart");
+        // Update chart area immediately since data is now available
+        if (display_manager_->getScreenState() == DETAIL_SCREEN) {
+            display_manager_->updateChartArea(*crypto_manager_);
+        }
+    } else {
+        LOG_ERROR("Failed to fetch candlestick data for " + symbol);
+    }
+}
+
+void ApplicationController::displaySystemStats() {
+    static unsigned long last_stats_display = 0;
+    static size_t last_free_heap = 0;
+    static unsigned long last_millis = 0;
+    
+    unsigned long now = millis();
+    
+    // Display stats every 30 seconds when DEBUG level is enabled
+    if (now - last_stats_display > 30000) {
+        size_t free_heap = ESP.getFreeHeap();
+        size_t min_free_heap = ESP.getMinFreeHeap();
+        size_t heap_size = ESP.getHeapSize();
+        size_t used_heap = heap_size - free_heap;
+        
+        // Calculate approximate CPU usage based on heap allocation changes
+        unsigned long time_diff = now - last_millis;
+        int heap_change = (int)(last_free_heap - free_heap);
+        
+        // Calculate memory usage percentage
+        float memory_usage_percent = (float)used_heap / heap_size * 100.0f;
+        
+        LOG_DEBUGF("=== SYSTEM STATS ===");
+        LOG_DEBUGF("Uptime: %lu seconds", now / 1000);
+        LOG_DEBUGF("Free Heap: %u bytes (%.1f%% used)", free_heap, memory_usage_percent);
+        LOG_DEBUGF("Min Free Heap: %u bytes", min_free_heap);
+        LOG_DEBUGF("Heap Change: %+d bytes in %lu ms", heap_change, time_diff);
+        
+        if (websocket_manager_) {
+            LOG_DEBUGF("WebSocket: %s", websocket_manager_->isConnected() ? "Connected" : "Disconnected");
+        }
+        
+        if (crypto_manager_) {
+            LOG_DEBUGF("Valid Coins: %d/%d", crypto_manager_->getValidCoinCount(), crypto_manager_->getCoinCount());
+        }
+        
+        LOG_DEBUGF("===================");
+        
+        last_stats_display = now;
+        last_free_heap = free_heap;
+        last_millis = now;
+    }
+}
+

@@ -9,12 +9,9 @@ WebSocketManager* WebSocketManager::instance_ = nullptr;
 
 WebSocketManager::WebSocketManager() 
     : symbol_count_(0), is_connected_(false), last_message_time_(0), connection_status_("Disconnected"),
-      should_reconnect_(false), last_reconnect_attempt_(0), reconnect_attempts_(0), reconnect_interval_(WEBSOCKET_RECONNECT_INTERVAL) {
+      should_reconnect_(false), last_reconnect_attempt_(0), reconnect_attempts_(0), reconnect_interval_(WEBSOCKET_RECONNECT_INTERVAL),
+      paused_for_memory_cleanup_(false), was_connected_before_pause_(false) {
     instance_ = this;
-}
-
-void WebSocketManager::initialize() {
-    LOG_INFO("WebSocketManager initialized with Links2004 WebSockets library");
 }
 
 bool WebSocketManager::connect() {
@@ -67,6 +64,55 @@ void WebSocketManager::disconnect() {
     }
 }
 
+void WebSocketManager::pauseForMemoryCleanup() {
+    LOG_INFO("Pausing WebSocket for memory cleanup (HTTPS operation)");
+    LOG_DEBUG("Free heap before WebSocket pause: " + String(ESP.getFreeHeap()) + " bytes");
+    
+    // Store current connection state
+    was_connected_before_pause_ = is_connected_;
+    paused_for_memory_cleanup_ = true;
+    
+    // Stop any reconnection attempts
+    should_reconnect_ = false;
+    
+    // Disconnect to free SSL memory
+    if (is_connected_) {
+        webSocket.disconnect();
+        is_connected_ = false;
+        updateConnectionStatus("Paused for HTTPS");
+        LOG_DEBUG("WebSocket disconnected for memory cleanup");
+    }
+    
+    LOG_DEBUG("Free heap after WebSocket pause: " + String(ESP.getFreeHeap()) + " bytes");
+}
+
+void WebSocketManager::resumeAfterMemoryCleanup() {
+    if (!paused_for_memory_cleanup_) {
+        LOG_WARN("resumeAfterMemoryCleanup called but WebSocket was not paused");
+        return;
+    }
+    
+    LOG_INFO("Resuming WebSocket after memory cleanup");
+    LOG_DEBUG("Free heap before WebSocket resume: " + String(ESP.getFreeHeap()) + " bytes");
+    
+    paused_for_memory_cleanup_ = false;
+    
+    // If we were connected before pause, try to reconnect
+    if (was_connected_before_pause_) {
+        LOG_DEBUG("Attempting to reconnect WebSocket after memory cleanup");
+        if (connect()) {
+            LOG_INFO("WebSocket successfully reconnected after memory cleanup");
+        } else {
+            LOG_WARN("WebSocket reconnection failed after memory cleanup, will retry with normal reconnection logic");
+            startReconnection();
+        }
+    } else {
+        LOG_DEBUG("WebSocket was not connected before pause, not attempting reconnection");
+    }
+    
+    was_connected_before_pause_ = false;
+}
+
 bool WebSocketManager::isConnected() const {
     return is_connected_;
 }
@@ -96,11 +142,11 @@ void WebSocketManager::subscribeToSymbols() {
     }
     
     // Create subscription message for multiple symbols
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     doc["method"] = "SUBSCRIBE";
     doc["id"] = 1;
     
-    JsonArray params = doc.createNestedArray("params");
+    JsonArray params = doc["params"].to<JsonArray>();
     for (int i = 0; i < symbol_count_; i++) {
         String stream = symbols_[i] + "@ticker";
         params.add(stream);
@@ -165,7 +211,7 @@ void WebSocketManager::onWebSocketEvent(WStype_t type, uint8_t *payload, size_t 
                 LOG_TRACEF("Received WebSocket message: %s", message.c_str());
                 
                 // Parse JSON message
-                DynamicJsonDocument doc(2048);
+                JsonDocument doc;
                 DeserializationError error = deserializeJson(doc, message);
                 
                 if (error) {
@@ -174,32 +220,30 @@ void WebSocketManager::onWebSocketEvent(WStype_t type, uint8_t *payload, size_t 
                 }
                 
                 // Handle direct ticker messages (individual stream format)
-                if (doc.containsKey("e") && doc["e"] == "24hrTicker") {
+                if (doc["e"].is<const char*>() && doc["e"] == "24hrTicker") {
                     String symbol = doc["s"];
                     float price = doc["c"].as<float>();  // Current price
                     float change24h = doc["p"].as<float>();  // 24h price change
                     float changePercent24h = doc["P"].as<float>();  // 24h change percent
                     
-                    LOG_DEBUGF("Ticker: %s, Price: %.2f, Change: %.2f (%.2f%%)", 
-                                 symbol.c_str(), price, change24h, changePercent24h);
+                    // Price update will be logged by BinanceDataManager in compact format
                     
                     if (price_callback_) {
                         price_callback_(symbol, price, change24h, changePercent24h);
                     }
                 }
                 // Handle multiplexed stream format (if using /stream endpoint)
-                else if (doc.containsKey("stream") && doc.containsKey("data")) {
+                else if (doc["stream"].is<const char*>() && doc["data"].is<JsonObject>()) {
                     String stream = doc["stream"];
                     JsonObject data = doc["data"];
                     
-                    if (stream.endsWith("@ticker") && data.containsKey("e") && data["e"] == "24hrTicker") {
+                    if (stream.endsWith("@ticker") && data["e"].is<const char*>() && data["e"] == "24hrTicker") {
                         String symbol = data["s"];
                         float price = data["c"].as<float>();  // Current price
                         float change24h = data["p"].as<float>();  // 24h price change
                         float changePercent24h = data["P"].as<float>();  // 24h change percent
                         
-                        LOG_DEBUGF("Ticker: %s, Price: %.2f, Change: %.2f (%.2f%%)", 
-                                     symbol.c_str(), price, change24h, changePercent24h);
+                        // Price update will be logged by BinanceDataManager in compact format
                         
                         if (price_callback_) {
                             price_callback_(symbol, price, change24h, changePercent24h);
@@ -207,7 +251,7 @@ void WebSocketManager::onWebSocketEvent(WStype_t type, uint8_t *payload, size_t 
                     }
                 }
                 // Handle subscription confirmations
-                else if (doc.containsKey("result") && doc.containsKey("id")) {
+                else if (doc["result"].is<JsonVariant>() && doc["id"].is<int>()) {
                     if (doc["result"].isNull()) {
                         LOG_INFO("Successfully subscribed to streams");
                         updateConnectionStatus("Active");
@@ -271,6 +315,11 @@ bool WebSocketManager::shouldReconnect() const {
 }
 
 void WebSocketManager::processReconnection() {
+    // Skip reconnection processing if paused for memory cleanup
+    if (paused_for_memory_cleanup_) {
+        return;
+    }
+    
     // Check for stale connection (no messages for a while)
     if (is_connected_ && isConnectionStale()) {
         LOG_WARN("WebSocket connection is stale, forcing disconnect");
@@ -293,7 +342,7 @@ void WebSocketManager::processReconnection() {
                 last_reconnect_attempt_ = millis();
                 // Exponential backoff: double the interval up to 60 seconds
                 reconnect_interval_ = min(reconnect_interval_ * 2, 60000UL);
-                LOG_WARNF("WebSocket reconnection failed, retry in %d seconds", reconnect_interval_ / 1000);
+                LOG_WARNF("WebSocket reconnection failed, retry in %lu seconds", reconnect_interval_ / 1000);
             }
         } else {
             LOG_ERROR("WebSocket reconnection failed after maximum attempts");

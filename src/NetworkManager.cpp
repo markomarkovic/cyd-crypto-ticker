@@ -1,6 +1,8 @@
 #include "NetworkManager.h"
 #include "constants.h"
 #include "esp_task_wdt.h"
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 NetworkManager::NetworkManager() : 
     ap_mode_active(false),
@@ -26,30 +28,30 @@ NetworkManager::~NetworkManager() {
 
 bool NetworkManager::connect(const char* ssid, const char* password, unsigned long timeout_ms) {
     if (!ssid || strlen(ssid) == 0) {
-        SAFE_SERIAL_PRINTLN("No WiFi SSID provided");
+        LOG_DEBUG("No WiFi SSID provided");
         return false;
     }
     
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
     
-    SAFE_SERIAL_PRINT("Connecting to WiFi");
+    LOG_DEBUG("Connecting to WiFi");
     unsigned long start_time = millis();
     
     while (WiFi.status() != WL_CONNECTED && (millis() - start_time) < timeout_ms) {
         delay(500);
-        SAFE_SERIAL_PRINT(".");
+        LOG_DEBUG(".");
     }
     
     if (WiFi.status() == WL_CONNECTED) {
-        SAFE_SERIAL_PRINTLN("");
-        SAFE_SERIAL_PRINT("Connected to WiFi! IP address: ");
-        SAFE_SERIAL_PRINTLN(WiFi.localIP());
+        LOG_DEBUG("");
+        LOG_DEBUG("Connected to WiFi! IP address: ");
+        LOG_DEBUG(WiFi.localIP());
         return true;
     }
     
-    SAFE_SERIAL_PRINTLN("");
-    SAFE_SERIAL_PRINTLN("WiFi connection timeout");
+    LOG_DEBUG("");
+    LOG_DEBUG("WiFi connection timeout");
     return false;
 }
 
@@ -108,12 +110,12 @@ bool NetworkManager::startAPMode() {
         ap_mode_active = true;
         setupWebServer();
         
-        SAFE_SERIAL_PRINTLN("AP Mode started");
-        SAFE_SERIAL_PRINT("SSID: ");
-        SAFE_SERIAL_PRINTLN(ap_ssid);
-        SAFE_SERIAL_PRINTLN("Password: (open - no password)");
-        SAFE_SERIAL_PRINT("IP address: ");
-        SAFE_SERIAL_PRINTLN(WiFi.softAPIP());
+        LOG_DEBUG("AP Mode started");
+        LOG_DEBUG("SSID: ");
+        LOG_DEBUG(ap_ssid);
+        LOG_DEBUG("Password: (open - no password)");
+        LOG_DEBUG("IP address: ");
+        LOG_DEBUG(WiFi.softAPIP());
     }
     
     return success;
@@ -139,7 +141,7 @@ void NetworkManager::stopAPMode() {
     WiFi.softAPdisconnect(true);
     ap_mode_active = false;
     
-    SAFE_SERIAL_PRINTLN("AP Mode stopped");
+    LOG_DEBUG("AP Mode stopped");
 }
 
 bool NetworkManager::isAPMode() const {
@@ -490,7 +492,7 @@ void NetworkManager::setupWebServer() {
     
     // Refresh endpoint - reboot device to rescan networks
     web_server->on("/refresh", HTTP_GET, [this](AsyncWebServerRequest *request){
-        SAFE_SERIAL_PRINTLN("Refresh requested - rebooting device");
+        LOG_DEBUG("Refresh requested - rebooting device");
         request->send(200, "text/html", 
             "<html><body style='font-family:Arial; text-align:center; background:#222; color:#fff;'>"
             "<h1>Refreshing...</h1><p>Device is rebooting to rescan networks.</p>"
@@ -554,14 +556,14 @@ void NetworkManager::setupWebServer() {
     });
     
     web_server->begin();
-    SAFE_SERIAL_PRINTLN("Web server started");
+    LOG_DEBUG("Web server started");
 }
 
 void NetworkManager::clearStoredWiFiConfig() {
     preferences.begin("wifi", false);
     preferences.clear();
     preferences.end();
-    SAFE_SERIAL_PRINTLN("WiFi configuration cleared from storage");
+    LOG_DEBUG("WiFi configuration cleared from storage");
 }
 
 void NetworkManager::saveWiFiConfig(const String& ssid, const String& password) {
@@ -569,7 +571,7 @@ void NetworkManager::saveWiFiConfig(const String& ssid, const String& password) 
     preferences.putString("ssid", ssid);
     preferences.putString("password", password);
     preferences.end();
-    SAFE_SERIAL_PRINTLN("WiFi configuration saved to storage");
+    LOG_DEBUG("WiFi configuration saved to storage");
 }
 
 bool NetworkManager::loadStoredWiFiConfig(String& ssid, String& password) {
@@ -581,11 +583,11 @@ bool NetworkManager::loadStoredWiFiConfig(String& ssid, String& password) {
     preferences.end();
     
     if (ssid.length() > 0) {
-        SAFE_SERIAL_PRINTLN("WiFi configuration loaded from storage");
+        LOG_DEBUG("WiFi configuration loaded from storage");
         return true;
     }
     
-    SAFE_SERIAL_PRINTLN("No WiFi configuration found in storage");
+    LOG_DEBUG("No WiFi configuration found in storage");
     return false;
 }
 
@@ -595,9 +597,9 @@ void NetworkManager::setReconfigurationRequested(bool requested) {
     preferences.end();
     
     if (requested) {
-        SAFE_SERIAL_PRINTLN("Reconfiguration flag set in persistent storage");
+        LOG_DEBUG("Reconfiguration flag set in persistent storage");
     } else {
-        SAFE_SERIAL_PRINTLN("Reconfiguration flag cleared from persistent storage");
+        LOG_DEBUG("Reconfiguration flag cleared from persistent storage");
     }
 }
 
@@ -615,7 +617,7 @@ void NetworkManager::clearReconfigurationFlag() {
 }
 
 void NetworkManager::factoryReset() {
-    SAFE_SERIAL_PRINTLN("Performing factory reset - clearing all stored data...");
+    LOG_DEBUG("Performing factory reset - clearing all stored data...");
     
     // Clear WiFi configuration
     preferences.begin("wifi", false);
@@ -627,7 +629,7 @@ void NetworkManager::factoryReset() {
     preferences.clear();
     preferences.end();
     
-    SAFE_SERIAL_PRINTLN("Factory reset complete - all stored data cleared");
+    LOG_DEBUG("Factory reset complete - all stored data cleared");
 }
 
 String NetworkManager::escapeJsonString(const String& str) {
@@ -671,7 +673,7 @@ String NetworkManager::escapeJsonString(const String& str) {
 }
 
 bool NetworkManager::scanWiFiNetworks() {
-    SAFE_SERIAL_PRINTLN("Scanning for WiFi networks...");
+    LOG_DEBUG("Scanning for WiFi networks...");
     
     // Set to STA mode for scanning
     WiFi.mode(WIFI_STA);
@@ -683,9 +685,9 @@ bool NetworkManager::scanWiFiNetworks() {
     // Perform synchronous scan
     int n = WiFi.scanNetworks();
     
-    SAFE_SERIAL_PRINT("WiFi scan completed. Found ");
-    SAFE_SERIAL_PRINT(n);
-    SAFE_SERIAL_PRINTLN(" networks");
+    LOG_DEBUG("WiFi scan completed. Found ");
+    LOG_DEBUG(n);
+    LOG_DEBUG(" networks");
     
     if (n > 0) {
         // Build JSON string with scan results
@@ -706,16 +708,16 @@ bool NetworkManager::scanWiFiNetworks() {
         has_scanned_networks = true;
         WiFi.scanDelete(); // Clean up
         
-        SAFE_SERIAL_PRINTLN("WiFi networks cached for AP mode");
+        LOG_DEBUG("WiFi networks cached for AP mode");
         return true;
     } else if (n == 0) {
-        SAFE_SERIAL_PRINTLN("No WiFi networks found");
+        LOG_DEBUG("No WiFi networks found");
         scanned_networks_json = "[]";
         has_scanned_networks = true;
         return true;
     } else {
-        SAFE_SERIAL_PRINT("WiFi scan failed with error: ");
-        SAFE_SERIAL_PRINTLN(n);
+        LOG_DEBUG("WiFi scan failed with error: ");
+        LOG_DEBUG(n);
         scanned_networks_json = "[]";
         has_scanned_networks = false;
         return false;
@@ -785,7 +787,7 @@ void NetworkManager::saveSymbolsConfig(const String& symbols) {
     preferences.begin("symbols", false);
     preferences.putString("symbols", symbols);
     preferences.end();
-    SAFE_SERIAL_PRINTLN("Symbols configuration saved to storage");
+    LOG_DEBUG("Symbols configuration saved to storage");
 }
 
 bool NetworkManager::loadStoredSymbolsConfig(String& symbols) {
@@ -796,10 +798,101 @@ bool NetworkManager::loadStoredSymbolsConfig(String& symbols) {
     preferences.end();
     
     if (symbols.length() > 0) {
-        SAFE_SERIAL_PRINTLN("Symbols configuration loaded from storage");
+        LOG_DEBUG("Symbols configuration loaded from storage");
         return true;
     }
     
-    SAFE_SERIAL_PRINTLN("No symbols configuration found in storage");
+    LOG_DEBUG("No symbols configuration found in storage");
+    return false;
+}
+
+/**
+ * @brief Makes a secure HTTPS GET request with memory optimization for ESP32
+ * 
+ * Creates a WiFiClientSecure connection with certificate verification disabled
+ * to reduce memory usage. Implements proper timeout handling and cleanup.
+ * 
+ * @param url Full HTTPS URL to request (must start with https://)
+ * @param response String reference to store the response body
+ * @param httpCode Integer reference to store the HTTP status code
+ * @param timeout_ms Request timeout in milliseconds (default: 15000)
+ * @return true if request succeeded (HTTP 200), false otherwise
+ * 
+ * @note Uses setInsecure() to skip SSL certificate verification
+ * @note Automatically handles client cleanup to prevent memory leaks
+ * @note Sets ESP32-CYD-Ticker user agent for API identification
+ */
+bool NetworkManager::httpGetSecure(const String& url, String& response, int& httpCode, unsigned long timeout_ms) {
+    LOG_DEBUG("Free heap before HTTPS: " + String(ESP.getFreeHeap()) + " bytes");
+    
+    // Check if we have enough memory for SSL operation (at least 40KB recommended)
+    size_t free_heap = ESP.getFreeHeap();
+    if (free_heap < 40000) {
+        LOG_ERROR("Insufficient memory for HTTPS connection: " + String(free_heap) + " bytes (need 40KB+)");
+        httpCode = -32512; // SSL memory allocation error
+        return false;
+    }
+    
+    // Create WiFiClientSecure with minimal memory footprint
+    WiFiClientSecure* client = new WiFiClientSecure;
+    if (!client) {
+        LOG_ERROR("Failed to create secure HTTP client - only " + String(ESP.getFreeHeap()) + " bytes free");
+        httpCode = -7; // ESP32 HTTPClient error: too less RAM
+        return false;
+    }
+    
+    // Configure for minimal memory usage
+    client->setInsecure(); // Skip certificate verification to save memory
+    client->setTimeout(timeout_ms / 1000); // Convert to seconds
+    
+    HTTPClient http;
+    http.begin(*client, url);
+    http.setTimeout(timeout_ms);
+    http.setUserAgent("ESP32-CYD-Ticker/1.0");
+    
+    LOG_DEBUG("Making HTTPS GET request to: " + url);
+    LOG_DEBUG("Free heap during HTTPS setup: " + String(ESP.getFreeHeap()) + " bytes");
+    
+    httpCode = http.GET();
+    
+    if (httpCode == HTTP_CODE_OK) {
+        response = http.getString();
+        LOG_DEBUG("HTTPS response received, size: " + String(response.length()));
+        LOG_DEBUG("Free heap after response: " + String(ESP.getFreeHeap()) + " bytes");
+    } else {
+        LOG_ERROR("HTTPS request failed with code: " + String(httpCode) + ", free heap: " + String(ESP.getFreeHeap()));
+    }
+    
+    http.end();
+    delete client;
+    client = nullptr;
+    
+    LOG_DEBUG("Free heap after cleanup: " + String(ESP.getFreeHeap()) + " bytes");
+    
+    return httpCode == HTTP_CODE_OK;
+}
+
+bool NetworkManager::httpGet(const String& url, const String& api_key, String& response, int& httpCode) {
+    // Check if URL is HTTPS and use secure method
+    if (url.startsWith("https://")) {
+        LOG_DEBUG("HTTPS URL detected, using secure HTTP client");
+        return httpGetSecure(url, response, httpCode, 15000); // 15 second timeout
+    }
+    
+    // Plain HTTP
+    HTTPClient http;
+    http.begin(url);
+    
+    // For Binance API, no special headers needed - it's a public endpoint
+    
+    httpCode = http.GET();
+    
+    if (httpCode == HTTP_CODE_OK) {
+        response = http.getString();
+        http.end();
+        return true;
+    }
+    
+    http.end();
     return false;
 }

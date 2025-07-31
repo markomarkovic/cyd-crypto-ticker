@@ -54,13 +54,14 @@ The project includes comprehensive Doxygen documentation covering:
 ### Prerequisites
 
 1. **Doxygen**: Install Doxygen on your system
+
    ```bash
    # Ubuntu/Debian
    sudo apt-get install doxygen
-   
+
    # macOS
    brew install doxygen
-   
+
    # Windows
    # Download from https://www.doxygen.nl/download.html
    ```
@@ -120,6 +121,7 @@ CLASS_DIAGRAMS         = YES
 ## Viewing Documentation
 
 After generation, documentation is available at:
+
 - **Main Index**: `docs/html/index.html`
 - **Class List**: `docs/html/annotated.html`
 - **File List**: `docs/html/files.html`
@@ -128,6 +130,7 @@ After generation, documentation is available at:
 ### Navigation Features
 
 The generated documentation includes:
+
 - **Search functionality** for quick navigation
 - **Class inheritance diagrams** showing relationships
 - **Call graphs** for function dependencies
@@ -143,14 +146,14 @@ The project uses Javadoc-style comments:
 ```cpp
 /**
  * @brief Brief description of the function
- * 
+ *
  * Detailed description explaining what the function does,
  * how it works, and any important notes about usage.
- * 
+ *
  * @param param1 Description of first parameter
  * @param param2 Description of second parameter
  * @return Description of return value
- * 
+ *
  * @see RelatedClass
  * @note Important usage notes
  * @warning Warnings about potential issues
@@ -224,6 +227,7 @@ Before committing changes:
 ### IDE Integration
 
 Many IDEs can display Doxygen comments:
+
 - **VS Code**: Install Doxygen extensions
 - **CLion**: Built-in Doxygen support
 - **Eclipse CDT**: Doxygen plugin available
@@ -238,7 +242,7 @@ Consider integrating documentation generation into CI/CD:
   run: |
     sudo apt-get install doxygen
     ./generate_docs.sh
-    
+
 - name: Deploy Documentation
   uses: peaceiris/actions-gh-pages@v3
   with:
@@ -258,6 +262,7 @@ Consider integrating documentation generation into CI/CD:
 ### Documentation Warnings
 
 Doxygen may produce warnings for:
+
 - Undocumented parameters
 - Missing return value descriptions
 - Broken cross-references
@@ -270,6 +275,7 @@ Address warnings to improve documentation quality.
 ### Custom CSS Styling
 
 Customize documentation appearance:
+
 ```ini
 HTML_EXTRA_STYLESHEET = custom.css
 ```
@@ -277,6 +283,7 @@ HTML_EXTRA_STYLESHEET = custom.css
 ### Diagram Generation
 
 Enable advanced diagrams (requires Graphviz):
+
 ```ini
 HAVE_DOT = YES
 CLASS_GRAPH = YES
@@ -287,6 +294,7 @@ CALL_GRAPH = YES
 ### LaTeX/PDF Output
 
 Generate PDF documentation:
+
 ```ini
 GENERATE_LATEX = YES
 USE_PDFLATEX = YES

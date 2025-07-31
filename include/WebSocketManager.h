@@ -16,6 +16,7 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 #include <functional>
+#include "constants.h"
 
 // Forward declaration
 struct CoinData;
@@ -59,14 +60,6 @@ public:
 
     // Connection management
     /**
-     * @brief Initialize WebSocket client and connection parameters
-     * 
-     * Sets up WebSocket client configuration, server endpoints,
-     * and prepares for connection attempts.
-     */
-    void initialize();
-    
-    /**
      * @brief Establish WebSocket connection to Binance API
      * 
      * Attempts to connect to Binance WebSocket API and subscribe
@@ -82,6 +75,22 @@ public:
      * Cleanly closes WebSocket connection and updates connection state.
      */
     void disconnect();
+    
+    /**
+     * @brief Temporarily pause WebSocket connection for memory management
+     * 
+     * Disconnects WebSocket to free SSL memory for HTTPS operations.
+     * Connection state is preserved to enable resuming later.
+     */
+    void pauseForMemoryCleanup();
+    
+    /**
+     * @brief Resume WebSocket connection after memory-intensive operations
+     * 
+     * Reconnects WebSocket using previously stored symbols and callbacks.
+     * Restores normal real-time data streaming.
+     */
+    void resumeAfterMemoryCleanup();
     
     /**
      * @brief Check if WebSocket connection is currently active
@@ -134,7 +143,7 @@ private:
     static const char* BINANCE_WS_PATH;
 
     WebSocketsClient webSocket;
-    String symbols_[10];  // Support up to 10 symbols
+    String symbols_[MAX_COINS];  // Support up to MAX_COINS symbols
     int symbol_count_;
     
     // Callbacks
@@ -151,6 +160,10 @@ private:
     unsigned long last_reconnect_attempt_;
     int reconnect_attempts_;
     unsigned long reconnect_interval_;
+    
+    // Memory cleanup pause state
+    bool paused_for_memory_cleanup_;
+    bool was_connected_before_pause_;
     
     // WebSocket event handler
     void onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length);

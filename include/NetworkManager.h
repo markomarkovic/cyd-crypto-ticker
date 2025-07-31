@@ -49,6 +49,10 @@ public:
     bool scanWiFiNetworks();
     String getScannedNetworksJSON() const;
     
+    // HTTP client methods
+    bool httpGetSecure(const String& url, String& response, int& httpCode, unsigned long timeout_ms = 15000);
+    bool httpGet(const String& url, const String& api_key, String& response, int& httpCode);
+    
     // Crypto symbols configuration methods
     bool validateSymbols(const String& symbols) const;
     bool hasNewSymbolsConfig() const;

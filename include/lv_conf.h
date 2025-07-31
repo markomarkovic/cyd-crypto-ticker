@@ -101,7 +101,7 @@
 	 * than unblocking a task using an intermediary object such as a binary semaphore.
 	 * RTOS task notifications can only be used when there is only one task that can be the recipient of the event.
 	 */
-	#define LV_USE_FREERTOS_TASK_NOTIFY 1
+	#define LV_USE_FREERTOS_TASK_NOTIFY 0
 #endif
 
 /*========================
@@ -144,14 +144,14 @@
 	 */
 
 	#define LV_DRAW_SW_SUPPORT_RGB565		1
-	#define LV_DRAW_SW_SUPPORT_RGB565A8		1
-	#define LV_DRAW_SW_SUPPORT_RGB888		1
-	#define LV_DRAW_SW_SUPPORT_XRGB8888		1
-	#define LV_DRAW_SW_SUPPORT_ARGB8888		1
-	#define LV_DRAW_SW_SUPPORT_L8			1
-	#define LV_DRAW_SW_SUPPORT_AL88			1
-	#define LV_DRAW_SW_SUPPORT_A8			1
-	#define LV_DRAW_SW_SUPPORT_I1			1
+	#define LV_DRAW_SW_SUPPORT_RGB565A8		0
+	#define LV_DRAW_SW_SUPPORT_RGB888		0
+	#define LV_DRAW_SW_SUPPORT_XRGB8888		0
+	#define LV_DRAW_SW_SUPPORT_ARGB8888		0
+	#define LV_DRAW_SW_SUPPORT_L8			0
+	#define LV_DRAW_SW_SUPPORT_AL88			0
+	#define LV_DRAW_SW_SUPPORT_A8			0
+	#define LV_DRAW_SW_SUPPORT_I1			0
 
 	/* Set the number of draw unit.
      * > 1 requires an operating system enabled in `LV_USE_OS`
@@ -200,11 +200,11 @@
 
     #if LV_USE_OS
         /* Use additional draw thread for VG-Lite processing.*/
-        #define LV_USE_VGLITE_DRAW_THREAD 1
+        #define LV_USE_VGLITE_DRAW_THREAD 0
 
         #if LV_USE_VGLITE_DRAW_THREAD
             /* Enable VGLite draw async. Queue multiple tasks and flash them once to the GPU. */
-            #define LV_USE_VGLITE_DRAW_ASYNC 1
+            #define LV_USE_VGLITE_DRAW_ASYNC 0
         #endif
     #endif
 
@@ -217,14 +217,14 @@
 
 #if LV_USE_PXP
     /* Use PXP for drawing.*/
-    #define LV_USE_DRAW_PXP 1
+    #define LV_USE_DRAW_PXP 0
 
     /* Use PXP to rotate display.*/
     #define LV_USE_ROTATE_PXP 0
 
     #if LV_USE_DRAW_PXP && LV_USE_OS
         /* Use additional draw thread for PXP processing.*/
-        #define LV_USE_PXP_DRAW_THREAD 1
+        #define LV_USE_PXP_DRAW_THREAD 0
     #endif
 
     /* Enable PXP asserts. */
@@ -298,23 +298,23 @@
 
     /*1: Enable print timestamp;
      *0: Disable print timestamp*/
-    #define LV_LOG_USE_TIMESTAMP 1
+    #define LV_LOG_USE_TIMESTAMP 0
 
     /*1: Print file and line number of the log;
      *0: Do not print file and line number of the log*/
-    #define LV_LOG_USE_FILE_LINE 1
+    #define LV_LOG_USE_FILE_LINE 0
 
 
     /*Enable/disable LV_LOG_TRACE in modules that produces a huge number of logs*/
-    #define LV_LOG_TRACE_MEM        1
-    #define LV_LOG_TRACE_TIMER      1
-    #define LV_LOG_TRACE_INDEV      1
-    #define LV_LOG_TRACE_DISP_REFR  1
-    #define LV_LOG_TRACE_EVENT      1
-    #define LV_LOG_TRACE_OBJ_CREATE 1
-    #define LV_LOG_TRACE_LAYOUT     1
-    #define LV_LOG_TRACE_ANIM       1
-    #define LV_LOG_TRACE_CACHE      1
+    #define LV_LOG_TRACE_MEM        0
+    #define LV_LOG_TRACE_TIMER      0
+    #define LV_LOG_TRACE_INDEV      0
+    #define LV_LOG_TRACE_DISP_REFR  0
+    #define LV_LOG_TRACE_EVENT      0
+    #define LV_LOG_TRACE_OBJ_CREATE 0
+    #define LV_LOG_TRACE_LAYOUT     0
+    #define LV_LOG_TRACE_ANIM       0
+    #define LV_LOG_TRACE_CACHE      0
 
 #endif  /*LV_USE_LOG*/
 
@@ -392,13 +392,13 @@
 * - lv_obj_stringify_id:    Return e.g. "button3"
 * - lv_obj_free_id:         Does nothing, as there is no memory allocation  for the ID.
 * When disabled these functions needs to be implemented by the user.*/
-#define LV_USE_OBJ_ID_BUILTIN   1
+#define LV_USE_OBJ_ID_BUILTIN   0
 
 /*Use obj property set/get API*/
 #define LV_USE_OBJ_PROPERTY 0
 
 /*Enable property name support*/
-#define LV_USE_OBJ_PROPERTY_NAME 1
+#define LV_USE_OBJ_PROPERTY_NAME 0
 
 /* VG-Lite Simulator */
 /*Requires: LV_USE_THORVG_INTERNAL or LV_USE_THORVG_EXTERNAL */
@@ -416,7 +416,7 @@
     #define LV_VG_LITE_THORVG_LINEAR_GRADIENT_EXT_SUPPORT 0
 
     /*Enable 16 pixels alignment*/
-    #define LV_VG_LITE_THORVG_16PIXELS_ALIGN 1
+    #define LV_VG_LITE_THORVG_16PIXELS_ALIGN 0
 
     /*Buffer address alignment*/
     #define LV_VG_LITE_THORVG_BUF_ADDR_ALIGN 64
@@ -443,7 +443,7 @@
 #define LV_ATTRIBUTE_FLUSH_READY
 
 /*Required alignment size for buffers*/
-#define LV_ATTRIBUTE_MEM_ALIGN_SIZE 1
+#define LV_ATTRIBUTE_MEM_ALIGN_SIZE 4
 
 /*Will be added where memories needs to be aligned (with -Os data might not be aligned to boundary by default).
  * E.g. __attribute__((aligned(4)))*/
@@ -530,7 +530,7 @@
 #define LV_USE_FONT_COMPRESSED 0
 
 /*Enable drawing placeholders when glyph dsc is not found*/
-#define LV_USE_FONT_PLACEHOLDER 1
+#define LV_USE_FONT_PLACEHOLDER 0
 
 /*=================
  *  TEXT SETTINGS
@@ -585,13 +585,13 @@
 
 #define LV_USE_ANIMIMG    0  /* Disabled to save space */
 
-#define LV_USE_ARC        1
+#define LV_USE_ARC        0
 
-#define LV_USE_BAR        1
+#define LV_USE_BAR        0
 
-#define LV_USE_BUTTON        1
+#define LV_USE_BUTTON        0
 
-#define LV_USE_BUTTONMATRIX  1
+#define LV_USE_BUTTONMATRIX  0
 
 #define LV_USE_CALENDAR   0  /* Disabled to save space */
 #if LV_USE_CALENDAR
@@ -608,19 +608,19 @@
     #define LV_USE_CALENDAR_CHINESE 0
 #endif  /*LV_USE_CALENDAR*/
 
-#define LV_USE_CANVAS     1
+#define LV_USE_CANVAS     0
 
 #define LV_USE_CHART      0  /* Disabled to save space */
 
-#define LV_USE_CHECKBOX   1
+#define LV_USE_CHECKBOX   0
 
 #define LV_USE_DROPDOWN   0  /* Disabled to save space */
 
 #define LV_USE_IMAGE      1   /*Requires: lv_label*/
 
-#define LV_USE_IMAGEBUTTON     1
+#define LV_USE_IMAGEBUTTON     0
 
-#define LV_USE_KEYBOARD   1
+#define LV_USE_KEYBOARD   0
 
 #define LV_USE_LABEL      1
 #if LV_USE_LABEL
@@ -633,7 +633,7 @@
 
 #define LV_USE_LINE       1
 
-#define LV_USE_LIST       1
+#define LV_USE_LIST       0
 
 #define LV_USE_LOTTIE     0  /*Requires: lv_canvas, thorvg */
 
@@ -657,7 +657,7 @@
 
 #define LV_USE_SPINNER    0  /* Disabled to save space */
 
-#define LV_USE_SWITCH     1
+#define LV_USE_SWITCH     0
 
 #define LV_USE_TEXTAREA   1   /*Requires: lv_label*/
 #if LV_USE_TEXTAREA != 0
@@ -677,34 +677,34 @@
  *==================*/
 
 /*A simple, impressive and very complete theme*/
-#define LV_USE_THEME_DEFAULT 1
+#define LV_USE_THEME_DEFAULT 0
 #if LV_USE_THEME_DEFAULT
 
     /*0: Light mode; 1: Dark mode*/
     #define LV_THEME_DEFAULT_DARK 0
 
     /*1: Enable grow on press*/
-    #define LV_THEME_DEFAULT_GROW 1
+    #define LV_THEME_DEFAULT_GROW 0
 
     /*Default transition time in [ms]*/
     #define LV_THEME_DEFAULT_TRANSITION_TIME 80
 #endif /*LV_USE_THEME_DEFAULT*/
 
 /*A very simple theme that is a good starting point for a custom theme*/
-#define LV_USE_THEME_SIMPLE 1
+#define LV_USE_THEME_SIMPLE 0
 
 /*A theme designed for monochrome displays*/
-#define LV_USE_THEME_MONO 1
+#define LV_USE_THEME_MONO 0
 
 /*==================
  * LAYOUTS
  *==================*/
 
 /*A layout similar to Flexbox in CSS.*/
-#define LV_USE_FLEX 1
+#define LV_USE_FLEX 0
 
 /*A layout similar to Grid in CSS.*/
-#define LV_USE_GRID 1
+#define LV_USE_GRID 0
 
 /*====================
  * 3RD PARTS LIBRARIES
@@ -890,7 +890,7 @@
 #define LV_USE_PROFILER 0
 #if LV_USE_PROFILER
     /*1: Enable the built-in profiler*/
-    #define LV_USE_PROFILER_BUILTIN 1
+    #define LV_USE_PROFILER_BUILTIN 0
     #if LV_USE_PROFILER_BUILTIN
         /*Default profiler trace buffer size*/
         #define LV_PROFILER_BUILTIN_BUF_SIZE (16 * 1024)     /*[bytes]*/
@@ -925,7 +925,7 @@
 #define LV_USE_IMGFONT 0
 
 /*1: Enable an observer pattern implementation*/
-#define LV_USE_OBSERVER 1
+#define LV_USE_OBSERVER 0
 
 /*1: Enable Pinyin input method*/
 /*Requires: lv_keyboard*/
@@ -1074,7 +1074,7 @@
 *==================*/
 
 /*Enable the examples to be built with the library*/
-#define LV_BUILD_EXAMPLES 1
+#define LV_BUILD_EXAMPLES 0
 
 /*===================
  * DEMO USAGE

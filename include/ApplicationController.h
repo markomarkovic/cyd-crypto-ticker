@@ -188,6 +188,31 @@ private:
      */
     void updateHardwareControls();
     
+    /**
+     * @brief Handle touch input events for screen navigation
+     * 
+     * Processes LVGL touch events and coordinates screen transitions
+     * between cryptocurrency list and chart detail views.
+     */
+    void handleTouchEvents();
+    
+    /**
+     * @brief Fetch candlestick data for the selected cryptocurrency
+     * 
+     * Retrieves chart data from Binance API for the currently selected
+     * cryptocurrency and updates the detail screen display.
+     */
+    void fetchCandlestickDataForSelectedCoin();
+    
+    /**
+     * @brief Display system performance statistics
+     * 
+     * Shows CPU usage, free/used memory stats when log level is DEBUG or lower.
+     * Called periodically to monitor system resource usage.
+     */
+    void displaySystemStats();
+    
+    
     // WiFi connection methods
     /**
      * @brief Connect to WiFi using newly provided credentials
