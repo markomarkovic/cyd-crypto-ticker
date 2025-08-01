@@ -10,6 +10,7 @@ A real-time cryptocurrency price display application for ESP32-based "Cheap Yell
 - **Visual Indicators**: Color-coded price trends and status indicators
 - **Hardware Integration**: RGB LED status indicators and automatic brightness adjustment
 - **WiFi Connectivity**: Automatic connection management with retry logic
+- **Modern Web Interface**: PicoCSS v2-styled configuration portal with responsive design
 - **Multi-Board Support**: Compatible with 40+ different Sunton ESP32 display variants
 - **Memory Efficient**: Optimized for ESP32's limited RAM with 25% usage (82KB/327KB)
 
@@ -140,6 +141,10 @@ The BOOT button provides several configuration options:
 ├── include/                       # Header files
 │   ├── lv_conf.h                  # LVGL configuration
 │   └── constants.h                # Hardware constants, colors, and timing intervals
+├── picocss/                       # PicoCSS v2 build system for web interface
+│   ├── scss/minimal.scss          # Source SCSS with minimal PicoCSS build
+│   ├── package.json               # Node.js build tools and dependencies
+│   └── update-cpp.js              # Automated CSS embedding script
 ├── boards/                        # Hardware board definitions (submodule)
 ├── find_binance_symbols.py        # Utility to find Binance trading pairs
 └── platformio.ini                 # Build configuration
@@ -255,6 +260,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **esp32_smartdisplay**: MIT License
 - **ArduinoJson**: MIT License
 - **ESPAsyncWebServer**: LGPL-3.0 License
+- **PicoCSS**: MIT License
 - **Board Definitions**: Various licenses (see `boards/` directory)
 
 ## 🙏 Acknowledgments
@@ -263,6 +269,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [LVGL](https://lvgl.io/) for the excellent embedded graphics library
 - [rzeldent](https://github.com/rzeldent) for the esp32_smartdisplay library
 - [Binance](https://binance.com/) for the free WebSocket cryptocurrency API
+- [PicoCSS](https://picocss.com/) for the minimal, semantic CSS framework
 - [Claude Code](https://claude.ai/code) for significant contributions to the code and documentation
 - The ESP32 and Arduino communities for excellent documentation and support
 

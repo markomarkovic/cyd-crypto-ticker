@@ -23,6 +23,7 @@ This is a **real-time cryptocurrency price display application** for ESP32-based
 - **Board Compatibility**: Works with 40+ different Sunton ESP32 display board variants
 - **Memory-Safe Implementation**: Proper LVGL object lifecycle management preventing crashes
 - **Fixed Layout**: Clean, scrollbar-free interface perfectly sized for 320px screen height
+- **Modern Web Interface**: PicoCSS v2-based configuration portal with responsive design and automatic dark/light theme detection
 
 ## Build and Development Commands
 
@@ -219,6 +220,11 @@ include/
 ├── constants.h                 - Hardware constants, colors, logging configuration
 └── [component headers...]      - Header files for all application modules
 
+picocss/                        - PicoCSS v2 build system for web interface styling
+├── scss/minimal.scss           - Source SCSS with minimal PicoCSS v2 build
+├── package.json                - Node.js build tools (SASS, cssnano) and dependencies  
+└── update-cpp.js               - Automated CSS embedding script for NetworkManager
+
 boards/                         - Git submodule with JSON hardware definitions for 40+ boards
 find_binance_symbols.py         - Utility to discover valid Binance trading pairs
 platformio.ini                  - Build configuration and board selection
@@ -234,6 +240,52 @@ platformio.ini                  - Build configuration and board selection
 - **Flash Savings**: ~11KB reduction from standard LVGL configuration
 
 **Note**: The LVGL configuration (`include/lv_conf.h`) has been optimized for this specific cryptocurrency ticker application. Many widgets, themes, and advanced features have been disabled to reduce memory usage and flash size. If you need additional LVGL features for modifications, you can re-enable them in `lv_conf.h` by changing the corresponding `#define` from `0` to `1`.
+
+### PicoCSS Web Interface Integration
+
+The project includes a minimal PicoCSS v2 build system for the captive portal configuration interface, providing modern styling with minimal overhead suitable for ESP32 constraints.
+
+#### PicoCSS Build System (`picocss/`)
+
+- **Source File**: `scss/minimal.scss` - Custom minimal build with only essential PicoCSS v2 components
+- **Size Optimization**: 7.4KB minified CSS (vs 71KB full PicoCSS) with only button/input elements
+- **Automatic Build**: `npm run build` compiles SCSS → CSS → minified → embedded in NetworkManager.cpp
+- **Theme Support**: Automatic dark/light theme detection based on user's system preferences
+- **Responsive Design**: Mobile-optimized layout with full-width buttons and proper spacing
+
+#### Key Features
+
+- **Semantic HTML**: Uses classless semantic approach (no CSS classes needed in HTML)
+- **Form Styling**: Professional button and input styling with hover/focus states
+- **Password Toggle**: Custom eye/no-eye password visibility toggle with text-based icons
+- **Validation Styling**: Error messages with proper color coding and spacing
+- **Network Selection**: Styled WiFi network selection with hover effects
+- **Memory Efficient**: Embedded directly in C++ avoiding external file dependencies
+
+#### Build Commands
+
+```bash
+# Navigate to PicoCSS directory
+cd picocss/
+
+# Install dependencies
+npm install
+
+# Build CSS and update NetworkManager.cpp
+npm run build
+
+# Individual build steps
+sass scss/minimal.scss css/minimal.css --style=expanded --no-source-map
+cssnano css/minimal.css css/minimal.min.css
+node update-cpp.js
+```
+
+#### Customization
+
+- **Colors**: Modify PicoCSS color variables in `scss/minimal.scss`
+- **Components**: Add additional PicoCSS components by importing them in the SCSS file
+- **Automation**: The `update-cpp.js` script automatically embeds new CSS builds into NetworkManager.cpp
+- **Size Monitoring**: Build output shows final CSS size for ESP32 memory planning
 
 ### Configuration Architecture
 

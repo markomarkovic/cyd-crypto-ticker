@@ -214,127 +214,13 @@ void NetworkManager::setupWebServer() {
 <head>
     <title>CYD Crypto Ticker Configuration</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background: #222;
-            color: #fff;
-            margin: 0;
-            padding: 0;
-        }
-        
-        .container {
-            max-width: 500px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-        
-        h1 {
-            color: #4CAF50;
-            margin-bottom: 30px;
-        }
-        
-        h3 {
-            color: #fff;
-            margin-top: 30px;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #444;
-            padding-bottom: 10px;
-        }
-        
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            box-sizing: border-box;
-            border: 1px solid #555;
-            background: #333;
-            color: #fff;
-            border-radius: 4px;
-        }
-        
-        input:focus {
-            border-color: #4CAF50;
-            outline: none;
-        }
-        
-        button {
-            background: #4CAF50;
-            color: white;
-            padding: 14px 20px;
-            margin: 8px 0;
-            border: none;
-            cursor: pointer;
-            width: 100%;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        
-        button:hover {
-            background: #45a049;
-        }
-        
-        .scan-btn {
-            background: #2196F3;
-        }
-        
-        .scan-btn:hover {
-            background: #1976D2;
-        }
-        
-        #networks {
-            text-align: left;
-            margin: 10px 0;
-        }
-        
-        .network {
-            padding: 10px;
-            border: 1px solid #555;
-            margin: 5px 0;
-            cursor: pointer;
-            border-radius: 4px;
-            background: #333;
-        }
-        
-        .network:hover {
-            background: #444;
-        }
-        
-        .help-text {
-            font-size: 14px;
-            color: #aaa;
-            margin-top: 5px;
-            text-align: left;
-            line-height: 1.4;
-        }
-        
-        .help-text a {
-            color: #4CAF50;
-            text-decoration: none;
-        }
-        
-        .help-text a:hover {
-            text-decoration: underline;
-        }
-        
-        #validation-errors {
-            color: #ee5a52;
-            margin: 10px 0;
-            text-align: left;
-            background: #441;
-            padding: 10px;
-            border-radius: 4px;
-            border-left: 4px solid #ee5a52;
-            display: none;
-        }
-    </style>
+    <style>:root{--pico-font-family:system-ui,"Segoe UI","Roboto","Helvetica Neue","Noto Sans","Liberation Sans","Arial",sans-serif;--pico-line-height:1.5;--pico-font-weight:400;--pico-font-size:16px;--pico-border-radius:0.25rem;--pico-border-width:1px;--pico-outline-width:3px;--pico-spacing:1rem;--pico-form-element-spacing-vertical:0.75rem;--pico-form-element-spacing-horizontal:1rem;--pico-transition:0.2s ease-in-out}*{box-sizing:border-box}body,html{overflow-x:hidden;width:100%;margin:0;padding:0}:root:not([data-theme=light]){color-scheme:dark;--pico-primary:#3b82f6;--pico-primary-background:#3b82f6;--pico-primary-hover:#2563eb;--pico-primary-hover-background:#2563eb;--pico-primary-focus:rgba(59,130,246,.25);--pico-primary-inverse:#fff;--pico-secondary:#64748b;--pico-secondary-background:#64748b;--pico-secondary-hover:#475569;--pico-secondary-hover-background:#475569;--pico-secondary-focus:rgba(100,116,139,.25);--pico-secondary-inverse:#fff;--pico-background-color:#0f172a;--pico-color:#cbd5e1;--pico-h1-color:#f1f5f9;--pico-h2-color:#e2e8f0;--pico-h3-color:#cbd5e1;--pico-muted-color:#64748b;--pico-border-color:#334155;--pico-form-element-background-color:#1e293b;--pico-form-element-border-color:#334155;--pico-form-element-color:#cbd5e1;--pico-form-element-placeholder-color:#64748b;--pico-form-element-active-background-color:#1e293b;--pico-form-element-active-border-color:var(--pico-primary);--pico-form-element-focus-color:var(--pico-primary-focus)}:root[data-theme=light]{color-scheme:light;--pico-primary:#3b82f6;--pico-primary-background:#3b82f6;--pico-primary-hover:#2563eb;--pico-primary-hover-background:#2563eb;--pico-primary-focus:rgba(59,130,246,.25);--pico-primary-inverse:#fff;--pico-secondary:#64748b;--pico-secondary-background:#64748b;--pico-secondary-hover:#475569;--pico-secondary-hover-background:#475569;--pico-secondary-focus:rgba(100,116,139,.25);--pico-secondary-inverse:#fff;--pico-background-color:#fff;--pico-color:#1e293b;--pico-h1-color:#0f172a;--pico-h2-color:#1e293b;--pico-h3-color:#334155;--pico-muted-color:#64748b;--pico-border-color:#e2e8f0;--pico-form-element-background-color:#fff;--pico-form-element-border-color:#d1d5db;--pico-form-element-color:#1e293b;--pico-form-element-placeholder-color:#9ca3af;--pico-form-element-active-background-color:#fff;--pico-form-element-active-border-color:var(--pico-primary);--pico-form-element-focus-color:var(--pico-primary-focus)}[type=button],[type=reset],[type=submit],button{--pico-background-color:var(--pico-primary-background);--pico-border-color:var(--pico-primary-background);--pico-color:var(--pico-primary-inverse);padding:var(--pico-form-element-spacing-vertical) var(--pico-form-element-spacing-horizontal);border:var(--pico-border-width) solid var(--pico-border-color);border-radius:var(--pico-border-radius);outline:none;background-color:var(--pico-background-color);color:var(--pico-color);font-weight:var(--pico-font-weight);font-size:1rem;line-height:var(--pico-line-height);text-align:center;cursor:pointer;transition:background-color var(--pico-transition),border-color var(--pico-transition),color var(--pico-transition);text-decoration:none;display:block;width:100%;box-sizing:border-box}[type=button]:is([aria-current],:hover,:active,:focus),[type=reset]:is([aria-current],:hover,:active,:focus),[type=submit]:is([aria-current],:hover,:active,:focus),button:is([aria-current],:hover,:active,:focus){--pico-background-color:var(--pico-primary-hover-background);--pico-border-color:var(--pico-primary-hover-background)}[type=button]:focus,[type=reset]:focus,[type=submit]:focus,button:focus{box-shadow:0 0 0 var(--pico-outline-width) var(--pico-primary-focus)}input:not([type=checkbox],[type=radio],[type=range],[type=file]),select,textarea{--pico-background-color:var(--pico-form-element-background-color);--pico-border-color:var(--pico-form-element-border-color);--pico-color:var(--pico-form-element-color);border:var(--pico-border-width) solid var(--pico-border-color);border-radius:var(--pico-border-radius);outline:none;background-color:var(--pico-background-color);color:var(--pico-color);font-weight:var(--pico-font-weight);font-size:1rem;line-height:var(--pico-line-height);transition:background-color var(--pico-transition),border-color var(--pico-transition),color var(--pico-transition);margin-bottom:var(--pico-spacing);padding:var(--pico-form-element-spacing-vertical) var(--pico-form-element-spacing-horizontal);width:100%;box-sizing:border-box}input:not([type=checkbox],[type=radio],[type=range],[type=file])::placeholder,select::placeholder,textarea::placeholder{color:var(--pico-form-element-placeholder-color);opacity:1}input:not([type=checkbox],[type=radio],[type=range],[type=file]):is(:active,:focus),select:is(:active,:focus),textarea:is(:active,:focus){--pico-background-color:var(--pico-form-element-active-background-color);--pico-border-color:var(--pico-form-element-active-border-color);box-shadow:0 0 0 var(--pico-outline-width) var(--pico-form-element-focus-color)}h1,h2,h3{margin-top:calc(var(--pico-spacing) * 1.5);margin-bottom:calc(var(--pico-spacing) * .5);font-weight:700;line-height:1.125}h1{font-size:2rem;color:var(--pico-h1-color)}h1:first-child{margin-top:0}h2{font-size:1.75rem;color:var(--pico-h2-color)}h3{font-size:1.5rem;color:var(--pico-h3-color)}.container{width:100%;margin-right:auto;margin-left:auto;padding:var(--pico-spacing);max-width:500px}.scan-btn{--pico-background-color:var(--pico-secondary-background);--pico-border-color:var(--pico-secondary-background)}.scan-btn:is([aria-current],:hover,:active,:focus){--pico-background-color:var(--pico-secondary-hover-background);--pico-border-color:var(--pico-secondary-hover-background)}.network{padding:var(--pico-spacing);border:var(--pico-border-width) solid var(--pico-border-color);margin:calc(var(--pico-spacing) / 2) 0;cursor:pointer;border-radius:var(--pico-border-radius);background:var(--pico-form-element-background-color);transition:background-color var(--pico-transition)}.network:hover{background:var(--pico-form-element-active-background-color)}.help-text{font-size:.875rem;color:var(--pico-muted-color);margin-top:calc(var(--pico-spacing) / 4);margin-bottom:calc(var(--pico-spacing) * 1.5);text-align:left;line-height:1.4}.help-text a{color:var(--pico-primary);text-decoration:none}.help-text a:hover{text-decoration:underline}#validation-errors{color:#dc2626;margin:var(--pico-spacing) 0;text-align:left;background:rgba(220,38,38,.1);padding:var(--pico-spacing);border-radius:var(--pico-border-radius);border-left:4px solid #dc2626;display:none}.password-container{position:relative;display:block;width:100%}.password-toggle{position:absolute;right:calc(var(--pico-form-element-spacing-horizontal) / 2);top:50%;transform:translateY(-50%);background:none;border:none;color:var(--pico-muted-color);cursor:pointer;padding:2px 6px;height:auto;min-width:32px;width:auto;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;user-select:none;transition:color var(--pico-transition);text-transform:lowercase}.password-toggle:hover{color:var(--pico-color)}.password-toggle:focus{outline:none!important;box-shadow:none!important}.password-container input[type=password],.password-container input[type=text]{padding-right:calc(var(--pico-form-element-spacing-horizontal) + 24px + var(--pico-form-element-spacing-horizontal) / 2)}</style>
 </head>
 <body>
-    <div class="container">
+    <main class="container">
         <h1>CYD Crypto Ticker Configuration</h1>
         
-        <div style="margin: 10px 0;">
+        <div>
             <button class="scan-btn" onclick="refreshNetworks()">Refresh Networks (Reboot)</button>
         </div>
         
@@ -383,8 +269,25 @@ void NetworkManager::setupWebServer() {
         // Load stored symbols config
         String stored_symbols;
         temp_prefs.begin("symbols", true); // Read-only
-        stored_symbols = temp_prefs.getString("symbols", "BTCUSDT,ETHUSDT,BNBUSDT,ADAUSDT,SOLUSDT,DOGEUSDT");
+        stored_symbols = temp_prefs.getString("symbols", "BTCUSDT,ETHUSDT,BNBUSDT,XRPUSDT,SOLUSDT,DOGEUSDT");
         temp_prefs.end();
+        
+        // Parse stored symbols into array for individual inputs
+        String symbol_array[6] = {"", "", "", "", "", ""};
+        if (stored_symbols.length() > 0) {
+            int start = 0;
+            int index = 0;
+            for (int i = 0; i <= stored_symbols.length() && index < 6; i++) {
+                if (i == stored_symbols.length() || stored_symbols.charAt(i) == ',') {
+                    if (i > start) {
+                        symbol_array[index] = stored_symbols.substring(start, i);
+                        symbol_array[index].trim();
+                        index++;
+                    }
+                    start = i + 1;
+                }
+            }
+        }
         
         html += R"HTML(            <h3>WiFi Configuration</h3>
             <input type="text" name="ssid" placeholder="WiFi Network Name (SSID)" )HTML";
@@ -392,56 +295,86 @@ void NetworkManager::setupWebServer() {
             html += "value=\"" + escapeJsonString(stored_ssid) + "\" ";
         }
         html += R"HTML(required>
-            <input type="password" name="password" placeholder="WiFi Password" )HTML";
+            <div class="password-container">
+                <input type="password" name="password" placeholder="WiFi Password" )HTML";
         if (has_stored_config) {
             html += "value=\"" + escapeJsonString(stored_password) + "\" ";
         }
         html += R"HTML(>
+                <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="Toggle password visibility">show</button>
+            </div>
             
             <h3>Cryptocurrency Configuration</h3>
-            <input type="text" name="symbols" placeholder="Binance Symbols (comma-separated)" )HTML";
-        if (stored_symbols.length() > 0) {
-            html += "value=\"" + escapeJsonString(stored_symbols) + "\" ";
+            <input type="text" name="coin1" placeholder="Coin 1 (e.g., BTCUSDT)" )HTML";
+        if (symbol_array[0].length() > 0) {
+            html += "value=\"" + escapeJsonString(symbol_array[0]) + "\" ";
+        }
+        html += R"HTML(required>
+            <input type="text" name="coin2" placeholder="Coin 2 (e.g., ETHUSDT)" )HTML";
+        if (symbol_array[1].length() > 0) {
+            html += "value=\"" + escapeJsonString(symbol_array[1]) + "\" ";
+        }
+        html += R"HTML(required>
+            <input type="text" name="coin3" placeholder="Coin 3 (e.g., BNBUSDT)" )HTML";
+        if (symbol_array[2].length() > 0) {
+            html += "value=\"" + escapeJsonString(symbol_array[2]) + "\" ";
+        }
+        html += R"HTML(required>
+            <input type="text" name="coin4" placeholder="Coin 4 (e.g., XRPUSDT)" )HTML";
+        if (symbol_array[3].length() > 0) {
+            html += "value=\"" + escapeJsonString(symbol_array[3]) + "\" ";
+        }
+        html += R"HTML(required>
+            <input type="text" name="coin5" placeholder="Coin 5 (e.g., SOLUSDT)" )HTML";
+        if (symbol_array[4].length() > 0) {
+            html += "value=\"" + escapeJsonString(symbol_array[4]) + "\" ";
+        }
+        html += R"HTML(required>
+            <input type="text" name="coin6" placeholder="Coin 6 (e.g., DOGEUSDT)" )HTML";
+        if (symbol_array[5].length() > 0) {
+            html += "value=\"" + escapeJsonString(symbol_array[5]) + "\" ";
         }
         html += R"HTML(required>
             <div class="help-text">
-                Enter Binance trading pairs (e.g., BTCUSDT,ETHUSDT,SOLUSDT). No API key required - completely free!
+                Enter 6 Binance USDT trading pairs. All fields are required.
             </div>
             
             <div id="validation-errors"></div>
             <button type="submit">Save Configuration</button>
         </form>
-    </div>
+    </main>
     <script>
         function validateForm() {
             var errors = [];
-            var symbols = document.querySelector('input[name="symbols"]').value;
             var errorDiv = document.getElementById('validation-errors');
             
             // Clear previous errors
             errorDiv.style.display = 'none';
             errorDiv.innerHTML = '';
             
-            // Validate symbols format
-            if (symbols.length === 0) {
-                errors.push('Cryptocurrency symbols are required');
-            } else {
-                // Check for valid Binance symbol format
-                var symbolRegex = /^[A-Z0-9]+(,[A-Z0-9]+)*$/;
-                if (!symbolRegex.test(symbols.toUpperCase())) {
-                    errors.push('Symbols must be comma-separated without spaces (e.g., BTCUSDT,ETHUSDT,SOLUSDT)');
-                }
+            // Validate all 6 coin inputs
+            var coinInputs = ['coin1', 'coin2', 'coin3', 'coin4', 'coin5', 'coin6'];
+            var validSymbols = [];
+            
+            for (var i = 0; i < coinInputs.length; i++) {
+                var coinInput = document.querySelector('input[name="' + coinInputs[i] + '"]');
+                var symbol = coinInput.value.trim().toUpperCase();
                 
-                // Check individual symbols and limit to 6
-                var symbolArray = symbols.split(',');
-                if (symbolArray.length > 6) {
-                    errors.push('Maximum 6 cryptocurrency symbols allowed (you entered ' + symbolArray.length + ')');
+                if (symbol.length === 0) {
+                    errors.push('Coin ' + (i + 1) + ' is required');
                 } else {
-                    for (var i = 0; i < symbolArray.length; i++) {
-                        var symbol = symbolArray[i].trim().toUpperCase();
-                        if (symbol.length < 6 || !symbol.endsWith('USDT')) {
-                            errors.push('Invalid symbol: ' + symbol + '. Use Binance USDT pairs (e.g., BTCUSDT)');
-                            break;
+                    // Check for valid Binance symbol format
+                    var symbolRegex = /^[A-Z0-9]+$/;
+                    if (!symbolRegex.test(symbol)) {
+                        errors.push('Coin ' + (i + 1) + ': Invalid symbol format. Use only letters and numbers (e.g., BTCUSDT)');
+                    } else if (symbol.length < 6 || !symbol.endsWith('USDT')) {
+                        errors.push('Coin ' + (i + 1) + ': Invalid symbol "' + symbol + '". Use Binance USDT pairs (e.g., BTCUSDT)');
+                    } else {
+                        // Check for duplicates
+                        if (validSymbols.indexOf(symbol) !== -1) {
+                            errors.push('Coin ' + (i + 1) + ': Duplicate symbol "' + symbol + '". Each coin must be unique');
+                        } else {
+                            validSymbols.push(symbol);
                         }
                     }
                 }
@@ -474,15 +407,37 @@ void NetworkManager::setupWebServer() {
             document.querySelector('input[name="ssid"]').value = ssid;
         }
         
-        // Auto-convert symbols input to uppercase
+        function togglePassword() {
+            var passwordInput = document.querySelector('input[name="password"]');
+            var toggleButton = document.querySelector('.password-toggle');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleButton.textContent = 'hide';
+                toggleButton.setAttribute('aria-label', 'Hide password');
+            } else {
+                passwordInput.type = 'password';
+                toggleButton.textContent = 'show';
+                toggleButton.setAttribute('aria-label', 'Show password');
+            }
+            
+            // Focus back to the password input
+            passwordInput.focus();
+        }
+        
+        // Auto-convert all coin inputs to uppercase
         document.addEventListener('DOMContentLoaded', function() {
-            var symbolsInput = document.querySelector('input[name="symbols"]');
-            symbolsInput.addEventListener('input', function(e) {
-                var start = e.target.selectionStart;
-                var end = e.target.selectionEnd;
-                e.target.value = e.target.value.toUpperCase();
-                e.target.setSelectionRange(start, end);
-            });
+            var coinInputs = ['coin1', 'coin2', 'coin3', 'coin4', 'coin5', 'coin6'];
+            
+            for (var i = 0; i < coinInputs.length; i++) {
+                var coinInput = document.querySelector('input[name="' + coinInputs[i] + '"]');
+                coinInput.addEventListener('input', function(e) {
+                    var start = e.target.selectionStart;
+                    var end = e.target.selectionEnd;
+                    e.target.value = e.target.value.toUpperCase();
+                    e.target.setSelectionRange(start, end);
+                });
+            }
         });
     </script>
 </body>
@@ -494,10 +449,10 @@ void NetworkManager::setupWebServer() {
     web_server->on("/refresh", HTTP_GET, [this](AsyncWebServerRequest *request){
         LOG_DEBUG("Refresh requested - rebooting device");
         request->send(200, "text/html", 
-            "<html><body style='font-family:Arial; text-align:center; background:#222; color:#fff;'>"
-            "<h1>Refreshing...</h1><p>Device is rebooting to rescan networks.</p>"
+            "<!DOCTYPE html><html><head><title>Refreshing Networks</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>:root{--pico-background-color:#0f172a;--pico-color:#cbd5e1;--pico-h1-color:#f1f5f9;--pico-font-family:system-ui,sans-serif;--pico-spacing:1rem}body{font-family:var(--pico-font-family);background-color:var(--pico-background-color);color:var(--pico-color);text-align:center;margin:0;padding:calc(var(--pico-spacing)*2)}h1{color:var(--pico-h1-color)}</style></head>"
+            "<body><h1>Refreshing...</h1><p>Device is rebooting to rescan networks.</p>"
             "<p>Please reconnect in a few seconds.</p></body></html>");
-        delay(1000);
+        delay(2000);
         ESP.restart();
     });
     
@@ -513,8 +468,27 @@ void NetworkManager::setupWebServer() {
         if (request->hasParam("password", true)) {
             password = request->getParam("password", true)->value();
         }
-        if (request->hasParam("symbols", true)) {
-            symbols = request->getParam("symbols", true)->value();
+        
+        // Collect 6 individual coin parameters and combine them
+        String coinInputs[6] = {"coin1", "coin2", "coin3", "coin4", "coin5", "coin6"};
+        String coinValues[6];
+        
+        for (int i = 0; i < 6; i++) {
+            if (request->hasParam(coinInputs[i], true)) {
+                coinValues[i] = request->getParam(coinInputs[i], true)->value();
+                coinValues[i].trim();
+                coinValues[i].toUpperCase();
+            }
+        }
+        
+        // Combine coins into comma-separated string
+        for (int i = 0; i < 6; i++) {
+            if (coinValues[i].length() > 0) {
+                if (symbols.length() > 0) {
+                    symbols += ",";
+                }
+                symbols += coinValues[i];
+            }
         }
         
         // Server-side validation
@@ -522,16 +496,26 @@ void NetworkManager::setupWebServer() {
         if (ssid.length() == 0) {
             errors += "SSID is required.<br>";
         }
-        if (symbols.length() == 0) {
-            errors += "Cryptocurrency symbols are required.<br>";
-        } else if (!validateSymbols(symbols)) {
-            errors += "Symbols must be valid Binance trading pairs (e.g., BTCUSDT,ETHUSDT).<br>";
+        
+        // Validate all 6 coins are provided
+        int validCoins = 0;
+        for (int i = 0; i < 6; i++) {
+            if (coinValues[i].length() == 0) {
+                errors += "Coin " + String(i + 1) + " is required.<br>";
+            } else {
+                validCoins++;
+            }
+        }
+        
+        if (validCoins > 0 && !validateSymbols(symbols)) {
+            errors += "All coins must be valid Binance USDT trading pairs (e.g., BTCUSDT,ETHUSDT).<br>";
         }
         
         if (errors.length() > 0) {
             request->send(400, "text/html", 
-                "<html><body style='font-family:Arial; text-align:center; background:#222; color:#fff;'>"
-                "<h1>Validation Error</h1><p>" + errors + "</p><a href='/'>Go Back</a></body></html>");
+                "<!DOCTYPE html><html><head><title>Validation Error</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>:root{--pico-background-color:#0f172a;--pico-color:#cbd5e1;--pico-h1-color:#f1f5f9;--pico-primary:#3b82f6;--pico-font-family:system-ui,sans-serif;--pico-spacing:1rem}body{font-family:var(--pico-font-family);background-color:var(--pico-background-color);color:var(--pico-color);text-align:center;margin:0;padding:calc(var(--pico-spacing)*2)}h1{color:var(--pico-h1-color)}.error{color:#dc2626}a{color:var(--pico-primary);text-decoration:none}</style></head>"
+                "<body><h1>Validation Error</h1><p class='error'>" + errors + "</p>"
+                "<a href='/'>Go Back</a></body></html>");
             return;
         }
         
@@ -544,10 +528,11 @@ void NetworkManager::setupWebServer() {
         has_new_symbols_config = true;
         
         request->send(200, "text/html", 
-            "<html><body style='font-family:Arial; text-align:center; background:#222; color:#fff;'>"
-            "<h1>Configuration Saved</h1><p>The device will now try to connect to: " + ssid + "</p>"
+            "<!DOCTYPE html><html><head><title>Configuration Saved</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>:root{--pico-background-color:#0f172a;--pico-color:#cbd5e1;--pico-h1-color:#f1f5f9;--pico-font-family:system-ui,sans-serif;--pico-spacing:1rem}body{font-family:var(--pico-font-family);background-color:var(--pico-background-color);color:var(--pico-color);text-align:center;margin:0;padding:calc(var(--pico-spacing)*2)}h1{color:var(--pico-h1-color)}</style></head>"
+            "<body><h1>Configuration Saved</h1><p>The device will now try to connect to: <strong>" + ssid + "</strong></p>"
             "<p>Cryptocurrency symbols have been saved.</p>"
             "<p>If WiFi connection is successful, this access point will be closed.</p></body></html>");
+        delay(2000);
     });
     
     // Catch all for captive portal

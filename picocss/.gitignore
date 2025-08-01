@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Generated CSS files (they are generated from SASS)
+css/minimal.css
+css/minimal.min.css
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

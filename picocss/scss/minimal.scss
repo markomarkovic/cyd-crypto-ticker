@@ -1,0 +1,304 @@
+// Minimal PicoCSS v2 build for CYD Crypto Ticker captive portal
+// Only button and input elements, no base document styles
+
+// Core CSS variables (minimal set)
+:root {
+  --pico-font-family: system-ui, "Segoe UI", "Roboto", "Helvetica Neue", "Noto Sans", "Liberation Sans", "Arial", sans-serif;
+  --pico-line-height: 1.5;
+  --pico-font-weight: 400;
+  --pico-font-size: 16px;
+  --pico-border-radius: 0.25rem;
+  --pico-border-width: 1px;
+  --pico-outline-width: 3px;
+  --pico-spacing: 1rem;
+  --pico-form-element-spacing-vertical: 0.75rem;
+  --pico-form-element-spacing-horizontal: 1rem;
+  --pico-transition: 0.2s ease-in-out;
+}
+
+// Prevent horizontal scrolling
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+// Dark theme colors (PicoCSS default)
+:root:not([data-theme="light"]) {
+  color-scheme: dark;
+  --pico-primary: #3b82f6;
+  --pico-primary-background: #3b82f6;
+  --pico-primary-hover: #2563eb;
+  --pico-primary-hover-background: #2563eb;
+  --pico-primary-focus: rgba(59, 130, 246, 0.25);
+  --pico-primary-inverse: #fff;
+  --pico-secondary: #64748b;
+  --pico-secondary-background: #64748b;
+  --pico-secondary-hover: #475569;
+  --pico-secondary-hover-background: #475569;
+  --pico-secondary-focus: rgba(100, 116, 139, 0.25);
+  --pico-secondary-inverse: #fff;
+  --pico-background-color: #0f172a;
+  --pico-color: #cbd5e1;
+  --pico-h1-color: #f1f5f9;
+  --pico-h2-color: #e2e8f0;
+  --pico-h3-color: #cbd5e1;
+  --pico-muted-color: #64748b;
+  --pico-border-color: #334155;
+  --pico-form-element-background-color: #1e293b;
+  --pico-form-element-border-color: #334155;
+  --pico-form-element-color: #cbd5e1;
+  --pico-form-element-placeholder-color: #64748b;
+  --pico-form-element-active-background-color: #1e293b;
+  --pico-form-element-active-border-color: var(--pico-primary);
+  --pico-form-element-focus-color: var(--pico-primary-focus);
+}
+
+// Light theme colors (PicoCSS default)
+:root[data-theme="light"] {
+  color-scheme: light;
+  --pico-primary: #3b82f6;
+  --pico-primary-background: #3b82f6;
+  --pico-primary-hover: #2563eb;
+  --pico-primary-hover-background: #2563eb;
+  --pico-primary-focus: rgba(59, 130, 246, 0.25);
+  --pico-primary-inverse: #fff;
+  --pico-secondary: #64748b;
+  --pico-secondary-background: #64748b;
+  --pico-secondary-hover: #475569;
+  --pico-secondary-hover-background: #475569;
+  --pico-secondary-focus: rgba(100, 116, 139, 0.25);
+  --pico-secondary-inverse: #fff;
+  --pico-background-color: #fff;
+  --pico-color: #1e293b;
+  --pico-h1-color: #0f172a;
+  --pico-h2-color: #1e293b;
+  --pico-h3-color: #334155;
+  --pico-muted-color: #64748b;
+  --pico-border-color: #e2e8f0;
+  --pico-form-element-background-color: #fff;
+  --pico-form-element-border-color: #d1d5db;
+  --pico-form-element-color: #1e293b;
+  --pico-form-element-placeholder-color: #9ca3af;
+  --pico-form-element-active-background-color: #fff;
+  --pico-form-element-active-border-color: var(--pico-primary);
+  --pico-form-element-focus-color: var(--pico-primary-focus);
+}
+
+// Button styles only
+button,
+[type="button"],
+[type="submit"],
+[type="reset"] {
+  --pico-background-color: var(--pico-primary-background);
+  --pico-border-color: var(--pico-primary-background);
+  --pico-color: var(--pico-primary-inverse);
+  padding: var(--pico-form-element-spacing-vertical) var(--pico-form-element-spacing-horizontal);
+  border: var(--pico-border-width) solid var(--pico-border-color);
+  border-radius: var(--pico-border-radius);
+  outline: none;
+  background-color: var(--pico-background-color);
+  color: var(--pico-color);
+  font-weight: var(--pico-font-weight);
+  font-size: 1rem;
+  line-height: var(--pico-line-height);
+  text-align: center;
+  cursor: pointer;
+  transition: background-color var(--pico-transition), border-color var(--pico-transition), color var(--pico-transition);
+  text-decoration: none;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+button:is([aria-current], :hover, :active, :focus),
+[type="button"]:is([aria-current], :hover, :active, :focus),
+[type="submit"]:is([aria-current], :hover, :active, :focus),
+[type="reset"]:is([aria-current], :hover, :active, :focus) {
+  --pico-background-color: var(--pico-primary-hover-background);
+  --pico-border-color: var(--pico-primary-hover-background);
+}
+
+button:focus,
+[type="button"]:focus,
+[type="submit"]:focus,
+[type="reset"]:focus {
+  box-shadow: 0 0 0 var(--pico-outline-width) var(--pico-primary-focus);
+}
+
+// Form input styles only
+input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+select,
+textarea {
+  --pico-background-color: var(--pico-form-element-background-color);
+  --pico-border-color: var(--pico-form-element-border-color);
+  --pico-color: var(--pico-form-element-color);
+  border: var(--pico-border-width) solid var(--pico-border-color);
+  border-radius: var(--pico-border-radius);
+  outline: none;
+  background-color: var(--pico-background-color);
+  color: var(--pico-color);
+  font-weight: var(--pico-font-weight);
+  font-size: 1rem;
+  line-height: var(--pico-line-height);
+  transition: background-color var(--pico-transition), border-color var(--pico-transition), color var(--pico-transition);
+  margin-bottom: var(--pico-spacing);
+  padding: var(--pico-form-element-spacing-vertical) var(--pico-form-element-spacing-horizontal);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"])::placeholder,
+select::placeholder,
+textarea::placeholder {
+  color: var(--pico-form-element-placeholder-color);
+  opacity: 1;
+}
+
+input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]):is(:active, :focus),
+select:is(:active, :focus),
+textarea:is(:active, :focus) {
+  --pico-background-color: var(--pico-form-element-active-background-color);
+  --pico-border-color: var(--pico-form-element-active-border-color);
+  box-shadow: 0 0 0 var(--pico-outline-width) var(--pico-form-element-focus-color);
+}
+
+// Basic typography styles (minimal)
+h1, h2, h3 {
+  margin-top: calc(var(--pico-spacing) * 1.5);
+  margin-bottom: calc(var(--pico-spacing) * 0.5);
+  font-weight: 700;
+  line-height: 1.125;
+}
+
+h1 { 
+  font-size: 2rem; 
+  color: var(--pico-h1-color);
+}
+
+// First heading has no top margin
+h1:first-child {
+  margin-top: 0;
+}
+
+h2 { 
+  font-size: 1.75rem; 
+  color: var(--pico-h2-color);
+}
+h3 { 
+  font-size: 1.5rem; 
+  color: var(--pico-h3-color);
+}
+
+// Container for layout
+.container {
+  width: 100%;
+  margin-right: auto;
+  margin-left: auto;
+  padding: var(--pico-spacing);
+  max-width: 500px;
+}
+
+// Custom classes for CYD elements
+.scan-btn {
+  --pico-background-color: var(--pico-secondary-background);
+  --pico-border-color: var(--pico-secondary-background);
+}
+
+.scan-btn:is([aria-current], :hover, :active, :focus) {
+  --pico-background-color: var(--pico-secondary-hover-background);
+  --pico-border-color: var(--pico-secondary-hover-background);
+}
+
+.network {
+  padding: var(--pico-spacing);
+  border: var(--pico-border-width) solid var(--pico-border-color);
+  margin: calc(var(--pico-spacing) / 2) 0;
+  cursor: pointer;
+  border-radius: var(--pico-border-radius);
+  background: var(--pico-form-element-background-color);
+  transition: background-color var(--pico-transition);
+}
+
+.network:hover {
+  background: var(--pico-form-element-active-background-color);
+}
+
+.help-text {
+  font-size: 0.875rem;
+  color: var(--pico-muted-color);
+  margin-top: calc(var(--pico-spacing) / 4);
+  margin-bottom: calc(var(--pico-spacing) * 1.5);
+  text-align: left;
+  line-height: 1.4;
+}
+
+.help-text a {
+  color: var(--pico-primary);
+  text-decoration: none;
+}
+
+.help-text a:hover {
+  text-decoration: underline;
+}
+
+#validation-errors {
+  color: #dc2626;
+  margin: var(--pico-spacing) 0;
+  text-align: left;
+  background: rgba(220, 38, 38, 0.1);
+  padding: var(--pico-spacing);
+  border-radius: var(--pico-border-radius);
+  border-left: 4px solid #dc2626;
+  display: none;
+}
+
+// Password toggle functionality
+.password-container {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.password-toggle {
+  position: absolute;
+  right: calc(var(--pico-form-element-spacing-horizontal) / 2);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--pico-muted-color);
+  cursor: pointer;
+  padding: 2px 6px;
+  height: auto;
+  min-width: 32px;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  user-select: none;
+  transition: color var(--pico-transition);
+  text-transform: lowercase;
+}
+
+.password-toggle:hover {
+  color: var(--pico-color);
+}
+
+.password-toggle:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+// Adjust password input padding to make room for toggle
+.password-container input[type="password"],
+.password-container input[type="text"] {
+  padding-right: calc(var(--pico-form-element-spacing-horizontal) + 24px + var(--pico-form-element-spacing-horizontal) / 2);
+}

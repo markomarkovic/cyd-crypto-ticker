@@ -1,0 +1,17 @@
+{
+  "name": "cyd-crypto-ticker-picocss",
+  "version": "1.0.0",
+  "description": "Minimal PicoCSS build for CYD Crypto Ticker captive portal",
+  "private": true,
+  "scripts": {
+    "build": "sass scss/minimal.scss css/minimal.css --style=expanded --no-source-map && cssnano css/minimal.css css/minimal.min.css && node update-cpp.js",
+    "build-dev": "sass scss/minimal.scss css/minimal.css --style=expanded --no-source-map",
+    "watch": "sass scss/minimal.scss css/minimal.css --watch --style=expanded --no-source-map",
+    "update-cpp": "node update-cpp.js"
+  },
+  "devDependencies": {
+    "@picocss/pico": "^2.0.6",
+    "cssnano-cli": "^1.0.5",
+    "sass": "^1.77.8"
+  }
+}
