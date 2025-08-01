@@ -11,7 +11,10 @@
 
 #include <Arduino.h>
 #include <lvgl.h>
+#include <esp32_smartdisplay.h>
 #include "ApplicationController.h"
+#include "constants.h"
+
 
 /**
  * @brief Global application controller instance
@@ -32,6 +35,12 @@ ApplicationController* app_controller;
  * when the ESP32 starts up or resets.
  */
 void setup() {
+    Serial.begin(115200);
+    Serial.setTimeout(10);
+    
+    LOG_INFO("=== CYD Crypto Ticker Starting ===");
+    
+    LOG_INFO("Initializing application");
     app_controller = new ApplicationController();
     app_controller->initialize();
 }

@@ -34,7 +34,7 @@ struct CandlestickData {
     /**
      * @brief Timestamp of the candlestick period (Unix timestamp in milliseconds)
      */
-    unsigned long timestamp;
+    uint64_t timestamp;
     
     /**
      * @brief Opening price at the start of the time period
@@ -276,6 +276,30 @@ public:
      * @return Time interval string (e.g., "1h", "4h", "1d")
      */
     String getCurrentCandlestickInterval() const;
+    
+    /**
+     * @brief Set the current candlestick interval for data fetching
+     * 
+     * @param interval Binance-compatible interval string (e.g., "1m", "1h", "1d")
+     * @return true if interval is valid and supported, false otherwise
+     */
+    bool setCurrentCandlestickInterval(const String& interval);
+    
+    /**
+     * @brief Check if a given interval string is supported by Binance API
+     * 
+     * @param interval Interval string to validate
+     * @return true if interval is supported, false otherwise
+     */
+    bool isValidInterval(const String& interval) const;
+    
+    /**
+     * @brief Get refresh rate in milliseconds for a given interval
+     * 
+     * @param interval Interval string (e.g., "1m", "1h", "1d")
+     * @return Refresh interval in milliseconds, or 0 if interval is invalid
+     */
+    unsigned long getIntervalRefreshRate(const String& interval) const;
     
     // Error management
     /**

@@ -205,6 +205,28 @@ private:
     void fetchCandlestickDataForSelectedCoin();
     
     /**
+     * @brief Get refresh interval for current candlestick data
+     * 
+     * @return Refresh interval in milliseconds based on current interval setting
+     */
+    unsigned long getCurrentRefreshInterval() const;
+    
+    /**
+     * @brief Handle automatic chart data refresh when in detail view
+     * 
+     * Automatically refreshes candlestick data at intervals matching the 
+     * selected timeframe when viewing a chart in detail screen.
+     */
+    void handleAutomaticChartRefresh();
+    
+    /**
+     * @brief Reset automatic refresh timer to start fresh interval counting
+     * 
+     * Called when interval changes to reset the refresh timing.
+     */
+    void resetAutomaticRefreshTimer();
+    
+    /**
      * @brief Display system performance statistics
      * 
      * Shows CPU usage, free/used memory stats when log level is DEBUG or lower.
@@ -312,6 +334,14 @@ private:
      * automatic reconnection, and data stream processing.
      */
     WebSocketManager* websocket_manager_;
+    
+    /**
+     * @brief Timestamp of last automatic chart refresh
+     * 
+     * Used to track automatic refresh timing for candlestick chart data
+     * based on the selected interval.
+     */
+    unsigned long last_auto_refresh_;
 };
 
 #endif // APPLICATION_CONTROLLER_H

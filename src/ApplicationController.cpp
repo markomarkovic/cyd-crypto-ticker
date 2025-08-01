@@ -19,7 +19,8 @@ ApplicationController::ApplicationController()
       display_manager_(nullptr),
       hardware_controller_(nullptr),
       state_manager_(nullptr),
-      websocket_manager_(nullptr) {
+      websocket_manager_(nullptr),
+      last_auto_refresh_(0) {
 }
 
 ApplicationController::~ApplicationController() {
@@ -294,6 +295,7 @@ void ApplicationController::handleNormalOperation() {
     updateLEDStatus();
     updateHardwareControls();
     handleTouchEvents();
+    handleAutomaticChartRefresh();
 }
 
 void ApplicationController::handleWiFiReconnection() {
@@ -509,13 +511,20 @@ void ApplicationController::handleTouchEvents() {
         
         if (state == LV_INDEV_STATE_PRESSED && !touch_press_handled) {
             LOG_DEBUG("Touch press detected at (" + String(point.x) + ", " + String(point.y) + ")");
-            bool screen_changed = display_manager_->handleTouch(point.x, point.y, *crypto_manager_);
+            ScreenState current_screen_before = display_manager_->getScreenState();
+            bool action_occurred = display_manager_->handleTouch(point.x, point.y, *crypto_manager_);
+            ScreenState current_screen_after = display_manager_->getScreenState();
             
-            if (screen_changed) {
-                touch_press_handled = true; // Prevent handling same press on new screen
+            if (action_occurred) {
+                touch_press_handled = true; // Prevent handling same press
                 static unsigned long last_chart_fetch = 0;
                 
-                if (display_manager_->getScreenState() == DETAIL_SCREEN) {
+                // Check if screen changed or if we're still in detail screen (interval change)
+                bool screen_changed = (current_screen_before != current_screen_after);
+                bool interval_changed = (current_screen_before == DETAIL_SCREEN && 
+                                       current_screen_after == DETAIL_SCREEN && action_occurred);
+                
+                if (screen_changed && current_screen_after == DETAIL_SCREEN) {
                     // Switching to detail screen - detail screen is already shown, now fetch data
                     unsigned long now = millis();
                     if (now - last_chart_fetch > 1000) { // Prevent multiple fetches within 1 second
@@ -525,7 +534,15 @@ void ApplicationController::handleTouchEvents() {
                     } else {
                         LOG_DEBUG("Ignoring duplicate chart fetch request (within 1 second)");
                     }
-                } else {
+                } else if (interval_changed) {
+                    // Interval was changed while in detail screen - immediate refresh
+                    LOG_INFO("Interval changed, refreshing chart data immediately...");
+                    fetchCandlestickDataForSelectedCoin();
+                    last_chart_fetch = millis();
+                    
+                    // Reset automatic refresh timer to start fresh with new interval
+                    resetAutomaticRefreshTimer();
+                } else if (screen_changed && current_screen_after == LIST_SCREEN) {
                     // Switching back to list screen - update main display
                     LOG_INFO("Screen switched to list view");
                     String sync_status = websocket_manager_ && websocket_manager_->isConnected() ? 
@@ -587,10 +604,11 @@ void ApplicationController::fetchCandlestickDataForSelectedCoin() {
         websocket_manager_->pauseForMemoryCleanup();
     }
     
-    // Synchronously fetch candlestick data with WebSocket paused
+    // Synchronously fetch candlestick data with WebSocket paused  
     // Screen fits ~31 candles, MA period is 7, so fetch 31 + 7 = 38 minimum
     // Round up to 40 for a small buffer
-    bool fetch_success = crypto_manager_->fetchCandlestickDataSync(symbol, "1h", 40, *network_manager_);
+    String current_interval = crypto_manager_->getCurrentCandlestickInterval();
+    bool fetch_success = crypto_manager_->fetchCandlestickDataSync(symbol, current_interval, 40, *network_manager_);
     
     // Resume WebSocket connection after fetch completes
     if (websocket_manager_) {
@@ -606,6 +624,40 @@ void ApplicationController::fetchCandlestickDataForSelectedCoin() {
     } else {
         LOG_ERROR("Failed to fetch candlestick data for " + symbol);
     }
+}
+
+unsigned long ApplicationController::getCurrentRefreshInterval() const {
+    if (!crypto_manager_) {
+        return 3600000UL; // Default to 1 hour if no manager
+    }
+    
+    String current_interval = crypto_manager_->getCurrentCandlestickInterval();
+    return crypto_manager_->getIntervalRefreshRate(current_interval);
+}
+
+void ApplicationController::handleAutomaticChartRefresh() {
+    // Only refresh when in detail screen
+    if (!display_manager_ || display_manager_->getScreenState() != DETAIL_SCREEN) {
+        return;
+    }
+    
+    unsigned long now = millis();
+    unsigned long refresh_interval = getCurrentRefreshInterval();
+    
+    // Check if it's time for automatic refresh
+    if (now - last_auto_refresh_ >= refresh_interval) {
+        LOG_INFO("Automatic chart refresh triggered for interval: " + crypto_manager_->getCurrentCandlestickInterval());
+        
+        // Fetch fresh data without showing "loading" message (user's request)
+        // This will just update the chart data silently
+        fetchCandlestickDataForSelectedCoin();
+        last_auto_refresh_ = now;
+    }
+}
+
+void ApplicationController::resetAutomaticRefreshTimer() {
+    last_auto_refresh_ = millis();
+    LOG_DEBUG("Automatic refresh timer reset");
 }
 
 void ApplicationController::displaySystemStats() {

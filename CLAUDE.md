@@ -9,6 +9,7 @@ This is a **real-time cryptocurrency price display application** for ESP32-based
 ### Key Features
 
 - **Advanced Candlestick Charts**: Interactive OHLCV charts with real-time data from Binance API
+- **Dynamic Interval Selection**: Touch-enabled interval selector with 14 timeframes (1m to 1M) and automatic refresh
 - **Technical Analysis**: 7-period moving averages with smooth line rendering
 - **Interactive Price Inspection**: Click-to-show-price with blue indicator line and precise price display
 - **Real-time WebSocket Integration**: Live cryptocurrency price updates from Binance WebSocket API (no API key required)
@@ -150,7 +151,7 @@ Touching any cryptocurrency in the list view switches to a detailed candlestick 
 **Candlestick Chart Area (266px height):**
 
 - **Chart Data**: Up to ~31 visible candlesticks optimally spaced for 240px width
-- **Time Interval**: 1-hour candles fetched from Binance Klines API
+- **Dynamic Time Intervals**: Configurable timeframes from 1m to 1M with automatic refresh
 - **OHLCV Display**: Open/High/Low/Close prices with volume data
 - **Candle Styling**: Rectangular bodies (no rounded corners) with matching wick colors
 - **Moving Average**: 7-period smooth moving average line overlay
@@ -159,6 +160,7 @@ Touching any cryptocurrency in the list view switches to a detailed candlestick 
 **Chart Labels & Indicators:**
 
 - **Price Labels**: Min/max price labels in top/bottom-right corners (14pt font)
+- **Interval Selector**: Dark transparent button in bottom-left corner for timeframe selection
 - **Timestamp**: Oldest visible candle date in bottom-left corner
 - **Highest/Lowest Points**: White lines extending from extreme values to screen edges
 - **Extended View**: 1-2 additional candles past left edge for historical context
@@ -168,8 +170,19 @@ Touching any cryptocurrency in the list view switches to a detailed candlestick 
 - **Click-to-Show-Price**: Touch anywhere on chart to display price at clicked height
 - **Price Indicator**: Blue horizontal line (50px) at exact click coordinates
 - **Price Display**: Calculated price shown in top-left corner with dark background
+- **Interval Selection**: Touch bottom-left button to access timeframe selector overlay
 - **Real-time Updates**: Coin info updates live via WebSocket while viewing chart
 - **Return Navigation**: Touch coin info area to return to main list view
+
+**Interval Selection System:**
+
+- **Access Method**: Touch dark transparent button (35x28px) in absolute bottom-left corner
+- **Available Intervals**: 14 timeframes - 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 1w, 1M
+- **Overlay Interface**: 3x5 grid of dark transparent buttons with subtle white borders
+- **Instant Response**: Buttons hide immediately when selected, data refreshes automatically
+- **Automatic Refresh**: Charts update at selected interval rate (1m = 1 minute, 1h = 1 hour, etc.)
+- **Persistent Selection**: Chosen interval persists when switching between different coin charts
+- **Silent Updates**: Background refresh without loading indicators after initial chart load
 
 #### Technical Implementation:
 

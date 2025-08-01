@@ -191,4 +191,31 @@ enum ScreenState {
 
 /** @} */ // end of Charts group
 
+/**
+ * @defgroup Intervals Interval Selection Configuration
+ * @brief Configuration constants for interval selection UI and refresh timing
+ * @{
+ */
+
+/** @brief Number of supported candlestick intervals */
+#define INTERVAL_COUNT 14
+
+/** @brief Supported Binance candlestick intervals */
+extern const char* SUPPORTED_INTERVALS[INTERVAL_COUNT];
+
+/** @brief Interval refresh rates in milliseconds (1:1 mapping with intervals) */
+extern const unsigned long INTERVAL_REFRESH_RATES[INTERVAL_COUNT];
+
+/** @brief Interval selection grid dimensions */
+#define INTERVAL_GRID_ROWS 5
+#define INTERVAL_GRID_COLS 3
+/** @brief Button height for interval selection grid */
+#define INTERVAL_BUTTON_HEIGHT 32
+/** @brief Button spacing for interval selection grid */
+#define INTERVAL_BUTTON_SPACING 4
+/** @brief Semi-transparent background opacity for interval buttons */
+#define INTERVAL_BUTTON_OPACITY LV_OPA_70
+
+/** @} */ // end of Intervals group
+
 #endif // CONSTANTS_H

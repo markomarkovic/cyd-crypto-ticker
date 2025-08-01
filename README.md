@@ -4,6 +4,10 @@ A real-time cryptocurrency price display application for ESP32-based "Cheap Yell
 
 ## ✨ Features
 
+- **Advanced Candlestick Charts**: Interactive OHLCV charts with real-time data from Binance API
+- **Dynamic Interval Selection**: Touch-enabled interval selector with 14 timeframes (1m to 1M) and automatic refresh
+- **Technical Analysis**: 7-period moving averages with smooth line rendering
+- **Interactive Price Inspection**: Click-to-show-price with blue indicator line and precise price display
 - **Real-time Crypto Prices**: Live price updates from Binance WebSocket API (no API key required)
 - **Multi-Currency Support**: Display multiple cryptocurrencies simultaneously
 - **Touch Interface**: Modern LVGL-based GUI with touch controls

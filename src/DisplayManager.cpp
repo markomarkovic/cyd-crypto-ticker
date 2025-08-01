@@ -6,7 +6,12 @@ DisplayManager::DisplayManager()
     : status_label_(nullptr), wifi_info_label_(nullptr), 
       current_screen_(LIST_SCREEN), selected_coin_index_(-1), last_touch_time_(0),
       chart_container_(nullptr), coin_info_container_(nullptr),
-      price_indicator_line_(nullptr), price_indicator_label_(nullptr) {
+      price_indicator_line_(nullptr), price_indicator_horizontal_line_(nullptr), price_indicator_label_(nullptr),
+      price_indicator_show_time_(0), interval_overlay_(nullptr), crypto_manager_ref_(nullptr) {
+    // Initialize interval buttons array
+    for (int i = 0; i < INTERVAL_COUNT; i++) {
+        interval_buttons_[i] = nullptr;
+    }
 }
 
 void DisplayManager::initialize() {
@@ -61,6 +66,11 @@ void DisplayManager::updateCryptoDisplay(const BinanceDataManager& crypto_manage
     }
 
     createCoinDisplay(coin_data, coin_count, error_message, y_offset, is_websocket_connected);
+    
+    // Check if price indicator should be auto-hidden (only in detail screen)
+    if (current_screen_ == DETAIL_SCREEN) {
+        checkPriceIndicatorTimeout();
+    }
     
     // Force immediate display refresh
     lv_refr_now(NULL);
@@ -343,7 +353,9 @@ void DisplayManager::showDetailScreen(int coinIndex, const BinanceDataManager& c
     
     // Clear price indicator references since screen was cleaned
     price_indicator_line_ = nullptr;
+    price_indicator_horizontal_line_ = nullptr;
     price_indicator_label_ = nullptr;
+    price_indicator_show_time_ = 0;
     
     // Ensure scrolling stays disabled
     lv_obj_t* screen = lv_screen_active();
@@ -464,6 +476,10 @@ void DisplayManager::showDetailScreen(int coinIndex, const BinanceDataManager& c
 
 void DisplayManager::showListScreen() {
     LOG_INFO("showListScreen called - switching back to list view");
+    
+    // Hide interval selection if visible
+    hideIntervalSelection();
+    
     current_screen_ = LIST_SCREEN;
     selected_coin_index_ = -1;
     
@@ -471,14 +487,16 @@ void DisplayManager::showListScreen() {
     chart_container_ = nullptr;
     coin_info_container_ = nullptr;
     price_indicator_line_ = nullptr;
+    price_indicator_horizontal_line_ = nullptr;
     price_indicator_label_ = nullptr;
+    price_indicator_show_time_ = 0;
     
     // List screen will be updated by the regular updateCryptoDisplay call
     LOG_INFO("Screen state changed to LIST_SCREEN");
 }
 
 // Touch event handling
-bool DisplayManager::handleTouch(lv_coord_t x, lv_coord_t y, const BinanceDataManager& crypto_manager) {
+bool DisplayManager::handleTouch(lv_coord_t x, lv_coord_t y, BinanceDataManager& crypto_manager) {
     unsigned long now = millis();
     
     // Debounce touch events
@@ -516,12 +534,57 @@ bool DisplayManager::handleTouch(lv_coord_t x, lv_coord_t y, const BinanceDataMa
         }
     } else if (current_screen_ == DETAIL_SCREEN) {
         LOG_DEBUG("Touch in detail screen at y=" + String(y) + ", COIN_INFO_HEIGHT=" + String(COIN_INFO_HEIGHT));
+        
+        // Check if interval selection overlay is visible
+        if (isIntervalSelectionVisible()) {
+            
+            // Check if any interval button was clicked
+            for (int i = 0; i < INTERVAL_COUNT; i++) {
+                if (interval_buttons_[i]) {
+                    lv_coord_t btn_x = lv_obj_get_x(interval_buttons_[i]);
+                    lv_coord_t btn_y = lv_obj_get_y(interval_buttons_[i]) + COIN_INFO_HEIGHT; // Adjust for chart container offset
+                    lv_coord_t btn_w = lv_obj_get_width(interval_buttons_[i]);
+                    lv_coord_t btn_h = lv_obj_get_height(interval_buttons_[i]);
+                    
+                    
+                    if (x >= btn_x && x < btn_x + btn_w && y >= btn_y && y < btn_y + btn_h) {
+                        LOG_INFO("Interval changed to: " + String(SUPPORTED_INTERVALS[i]));
+                        
+                        // Set new interval and hide overlay
+                        crypto_manager.setCurrentCandlestickInterval(SUPPORTED_INTERVALS[i]);
+                        hideIntervalSelection();
+                        
+                        // Return special value to indicate interval changed (need data refetch)
+                        return true; // Will trigger data refetch in ApplicationController
+                    }
+                }
+            }
+            
+            // If clicked outside buttons, hide interval selection
+            hideIntervalSelection();
+            return false;
+        }
+        
         // Check if price area was touched (top COIN_INFO_HEIGHT pixels)
         if (y <= COIN_INFO_HEIGHT) {
             LOG_INFO("Price area touched, returning to list view");
             showListScreen();
             return true;
         } else {
+            // Check if interval label area was clicked (bottom-left corner)
+            lv_coord_t chart_y = y - COIN_INFO_HEIGHT; // Convert to chart-relative coordinates
+            lv_coord_t chart_height = lv_obj_get_height(chart_container_);
+            
+            // Expand clickable area: 50x45px instead of 35x28px for easier clicking  
+            // Interval container now at absolute bottom: x: 0 to 35, y: chart_height-28 to chart_height
+            // Expanded clickable area: x: 0 to 50, y: chart_height-45 to chart_height
+            
+            if (x >= 0 && x <= 50 && chart_y >= chart_height - 45 && chart_y <= chart_height) {
+                LOG_DEBUG("Interval selection opened");
+                showIntervalSelection();
+                return false; // No screen change
+            }
+            
             // Touch in chart area - show price indicator
             LOG_DEBUG("Touch in chart area at y=" + String(y) + ", showing price indicator");
             
@@ -546,10 +609,13 @@ bool DisplayManager::handleTouch(lv_coord_t x, lv_coord_t y, const BinanceDataMa
                 float chart_min = data_min - (price_range * CHART_PRICE_PADDING);
                 float chart_max = data_max + (price_range * CHART_PRICE_PADDING);
                 
+                // Store reference to crypto manager for timestamp calculation
+                crypto_manager_ref_ = &crypto_manager;
+                
                 // Convert touch coordinates to chart-relative coordinates
                 lv_coord_t chart_x = x;
-                lv_coord_t chart_y = y - COIN_INFO_HEIGHT;
-                showPriceIndicator(chart_x, chart_y, chart_min, chart_max);
+                lv_coord_t chart_y_adj = y - COIN_INFO_HEIGHT;
+                showPriceIndicator(chart_x, chart_y_adj, chart_min, chart_max);
                 return false; // No screen change, just showing price indicator
             }
             return false; // No valid candlestick data
@@ -789,10 +855,23 @@ void DisplayManager::drawChartLabels(const CandlestickData* candles, int count, 
     
     // Time interval label (bottom-left corner of chart area)
     if (!interval.isEmpty()) {
+        // Create interval label first (will be behind the container)
         lv_obj_t* interval_label = lv_label_create(chart_container_);
         lv_label_set_text(interval_label, interval.c_str());
-        lv_obj_align(interval_label, LV_ALIGN_BOTTOM_LEFT, 5, -5);
+        lv_obj_align(interval_label, LV_ALIGN_BOTTOM_LEFT, 5, -5); // Original label position
         lv_obj_set_style_text_color(interval_label, COLOR_MUTED_GREY, 0);
+        
+        // Create clickable container on top - starts from screen edge
+        lv_obj_t* interval_container = lv_obj_create(chart_container_);
+        lv_obj_set_size(interval_container, 35, 28); // Rectangular 35x28px
+        lv_obj_align(interval_container, LV_ALIGN_BOTTOM_LEFT, 0, 0); // Absolute bottom-left corner
+        
+        // Style the container - dark transparent background
+        lv_obj_set_style_bg_color(interval_container, COLOR_DARK_BG, 0);
+        lv_obj_set_style_bg_opa(interval_container, LV_OPA_60, 0); // Dark transparent
+        lv_obj_set_style_radius(interval_container, 3, 0); // Slightly rounded corners
+        lv_obj_set_style_pad_all(interval_container, 0, 0);
+        lv_obj_clear_flag(interval_container, LV_OBJ_FLAG_SCROLLABLE);
     }
 }
 
@@ -805,12 +884,17 @@ void DisplayManager::updateChartArea(const BinanceDataManager& crypto_manager) {
     
     LOG_DEBUG("Updating chart area with new candlestick data");
     
+    // Hide interval selection if visible before clearing chart
+    hideIntervalSelection();
+    
     // Clear existing chart content
     lv_obj_clean(chart_container_);
     
     // Reset price indicator pointers since chart was cleaned
     price_indicator_line_ = nullptr;
+    price_indicator_horizontal_line_ = nullptr;
     price_indicator_label_ = nullptr;
+    price_indicator_show_time_ = 0;
     
     // Get candlestick data
     const CandlestickData* candles = crypto_manager.getCandlestickData();
@@ -828,6 +912,9 @@ void DisplayManager::updateChartArea(const BinanceDataManager& crypto_manager) {
         lv_obj_set_style_text_color(loading_label, COLOR_GREY_TEXT, 0);
         lv_obj_set_style_text_font(loading_label, &jetbrains_mono_12, 0);
     }
+    
+    // Check if price indicator should be auto-hidden
+    checkPriceIndicatorTimeout();
     
     // Force display refresh
     lv_refr_now(NULL);
@@ -877,6 +964,9 @@ void DisplayManager::updateDetailCoinInfo(const BinanceDataManager& crypto_manag
         lv_obj_set_style_text_color(lv_obj_get_child(coin_info_container_, 4), 
                                    coin.change_percent_24h >= 0 ? COLOR_BRIGHT_GREEN : COLOR_BRIGHT_RED, 0);
     }
+    
+    // Check if price indicator should be auto-hidden
+    checkPriceIndicatorTimeout();
 }
 
 void DisplayManager::showPriceIndicator(lv_coord_t x_pos, lv_coord_t y_pos, float price_min, float price_max) {
@@ -888,6 +978,11 @@ void DisplayManager::showPriceIndicator(lv_coord_t x_pos, lv_coord_t y_pos, floa
     }
     price_indicator_line_ = nullptr;
     
+    if (price_indicator_horizontal_line_ && lv_obj_is_valid(price_indicator_horizontal_line_)) {
+        lv_obj_del(price_indicator_horizontal_line_);
+    }
+    price_indicator_horizontal_line_ = nullptr;
+    
     if (price_indicator_label_ && lv_obj_is_valid(price_indicator_label_)) {
         lv_obj_del(price_indicator_label_);
     }
@@ -898,20 +993,48 @@ void DisplayManager::showPriceIndicator(lv_coord_t x_pos, lv_coord_t y_pos, floa
     float price_range = price_max - price_min;
     float clicked_price = price_max - ((float)(y_pos) / chart_height * price_range);
     
-    // Create horizontal blue line at exact click position
+    // Calculate timestamp at the clicked X position
+    String timestamp_text = calculateTimestampAtPosition(x_pos);
+    
+    // Create vertical blue line (crosshair vertical component) - 30px centered on click
     price_indicator_line_ = lv_obj_create(chart_container_);
-    lv_obj_set_size(price_indicator_line_, 50, 1);
-    lv_obj_set_pos(price_indicator_line_, x_pos - 25, y_pos); // Center on click X position
+    lv_obj_set_size(price_indicator_line_, 1, 30);
+    lv_obj_set_pos(price_indicator_line_, x_pos, y_pos - 15); // Center vertically on click Y
     lv_obj_set_style_bg_color(price_indicator_line_, lv_color_hex(0x0080FF), 0); // Blue color
     lv_obj_set_style_bg_opa(price_indicator_line_, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(price_indicator_line_, 0, 0);
     lv_obj_set_style_pad_all(price_indicator_line_, 0, 0);
     lv_obj_set_style_radius(price_indicator_line_, 0, 0);
     
-    // Create price label with dark background in top-left corner
+    // Create horizontal blue line (crosshair horizontal component) - 30px centered on click
+    price_indicator_horizontal_line_ = lv_obj_create(chart_container_);
+    lv_obj_set_size(price_indicator_horizontal_line_, 30, 1);
+    lv_obj_set_pos(price_indicator_horizontal_line_, x_pos - 15, y_pos); // Center horizontally on click X
+    lv_obj_set_style_bg_color(price_indicator_horizontal_line_, lv_color_hex(0x0080FF), 0); // Blue color
+    lv_obj_set_style_bg_opa(price_indicator_horizontal_line_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(price_indicator_horizontal_line_, 0, 0);
+    lv_obj_set_style_pad_all(price_indicator_horizontal_line_, 0, 0);
+    lv_obj_set_style_radius(price_indicator_horizontal_line_, 0, 0);
+    
+    // Set timer for auto-hide after 2 seconds
+    price_indicator_show_time_ = millis();
+    
+    // Create timestamp and price label with dark background in top-left corner
     price_indicator_label_ = lv_obj_create(chart_container_);
-    lv_obj_t* price_text = lv_label_create(price_indicator_label_);
-    lv_label_set_text(price_text, formatPrice(clicked_price).c_str());
+    
+    // Create timestamp label (top line)
+    lv_obj_t* timestamp_label = lv_label_create(price_indicator_label_);
+    lv_label_set_text(timestamp_label, timestamp_text.c_str());
+    lv_obj_align(timestamp_label, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_set_style_text_color(timestamp_label, lv_color_hex(0x0080FF), 0); // Blue text
+    lv_obj_set_style_text_font(timestamp_label, &jetbrains_mono_14, 0);
+    
+    // Create price label (bottom line)
+    lv_obj_t* price_label = lv_label_create(price_indicator_label_);
+    lv_label_set_text(price_label, formatPrice(clicked_price).c_str());
+    lv_obj_align(price_label, LV_ALIGN_TOP_LEFT, 0, 16); // 16px below timestamp
+    lv_obj_set_style_text_color(price_label, lv_color_hex(0x0080FF), 0); // Blue text
+    lv_obj_set_style_text_font(price_label, &jetbrains_mono_14, 0);
     
     // Style the container with dark background (no border)
     lv_obj_set_style_bg_color(price_indicator_label_, lv_color_hex(0x000000), 0); // Black background
@@ -920,13 +1043,269 @@ void DisplayManager::showPriceIndicator(lv_coord_t x_pos, lv_coord_t y_pos, floa
     lv_obj_set_style_radius(price_indicator_label_, 3, 0); // Small rounded corners
     lv_obj_set_style_pad_all(price_indicator_label_, 4, 0); // Small padding
     
-    // Style the text
-    lv_obj_set_style_text_color(price_text, lv_color_hex(0x0080FF), 0); // Blue text
-    lv_obj_set_style_text_font(price_text, &jetbrains_mono_14, 0); // Match min/max price labels
-    
-    // Position in top-left corner with text aligned to max price text level
-    // Max price is at offset 5px from top, we need 2-4px higher and 3-4px more left
+    // Position in top-left corner
     lv_obj_set_pos(price_indicator_label_, 0, 1); // Touch left edge, 1px from top
     lv_obj_set_size(price_indicator_label_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+}
+
+void DisplayManager::showIntervalSelection() {
+    if (!chart_container_ || interval_overlay_) {
+        LOG_WARN("Cannot show interval selection: no chart container or overlay already exists");
+        return;
+    }
+    
+    
+    // Create overlay container covering the entire chart area
+    interval_overlay_ = lv_obj_create(chart_container_);
+    lv_obj_set_size(interval_overlay_, 240, lv_obj_get_height(chart_container_));
+    lv_obj_set_pos(interval_overlay_, 0, 0);
+    lv_obj_set_style_bg_color(interval_overlay_, COLOR_DARK_BG, 0);
+    lv_obj_set_style_bg_opa(interval_overlay_, LV_OPA_80, 0); // Dark transparent background
+    lv_obj_set_style_border_width(interval_overlay_, 0, 0);
+    lv_obj_set_style_pad_all(interval_overlay_, 10, 0);
+    lv_obj_clear_flag(interval_overlay_, LV_OBJ_FLAG_SCROLLABLE);
+    
+    // Calculate button dimensions
+    int available_width = 240 - 20; // Container width minus padding
+    int available_height = lv_obj_get_height(chart_container_) - 20; // Container height minus padding
+    
+    int button_width = (available_width - (INTERVAL_GRID_COLS - 1) * INTERVAL_BUTTON_SPACING) / INTERVAL_GRID_COLS;
+    int grid_height = INTERVAL_GRID_ROWS * INTERVAL_BUTTON_HEIGHT + (INTERVAL_GRID_ROWS - 1) * INTERVAL_BUTTON_SPACING;
+    int start_y = (available_height - grid_height) / 2; // Center vertically
+    
+    // Create interval buttons in 3x5 grid
+    for (int i = 0; i < INTERVAL_COUNT; i++) {
+        int row = i / INTERVAL_GRID_COLS;
+        int col = i % INTERVAL_GRID_COLS;
+        
+        // Special handling for last row (2 buttons) - expand to fill width
+        int btn_width = button_width;
+        int btn_x = col * (button_width + INTERVAL_BUTTON_SPACING);
+        
+        if (row == INTERVAL_GRID_ROWS - 1) { // Last row
+            btn_width = (available_width - INTERVAL_BUTTON_SPACING) / 2; // Two buttons sharing width
+            btn_x = col * (btn_width + INTERVAL_BUTTON_SPACING);
+        }
+        
+        int btn_y = start_y + row * (INTERVAL_BUTTON_HEIGHT + INTERVAL_BUTTON_SPACING);
+        
+        // Create button
+        interval_buttons_[i] = lv_obj_create(interval_overlay_);
+        lv_obj_set_size(interval_buttons_[i], btn_width, INTERVAL_BUTTON_HEIGHT);
+        lv_obj_set_pos(interval_buttons_[i], btn_x, btn_y);
+        
+        // Style button - dark transparent background with subtle border
+        lv_obj_set_style_bg_color(interval_buttons_[i], COLOR_DARK_BG, 0);
+        lv_obj_set_style_bg_opa(interval_buttons_[i], LV_OPA_60, 0); // Dark transparent
+        lv_obj_set_style_border_width(interval_buttons_[i], 1, 0); // Thin border
+        lv_obj_set_style_border_color(interval_buttons_[i], COLOR_WHITE_TEXT, 0); // White border  
+        lv_obj_set_style_border_opa(interval_buttons_[i], LV_OPA_20, 0); // Subtle transparent border (less than bg)
+        lv_obj_set_style_radius(interval_buttons_[i], 4, 0);
+        lv_obj_set_style_pad_all(interval_buttons_[i], 2, 0);
+        lv_obj_clear_flag(interval_buttons_[i], LV_OBJ_FLAG_SCROLLABLE);
+        
+        // Add text label
+        lv_obj_t* label = lv_label_create(interval_buttons_[i]);
+        lv_label_set_text(label, SUPPORTED_INTERVALS[i]);
+        lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_text_color(label, COLOR_WHITE_TEXT, 0);
+        lv_obj_set_style_text_font(label, &jetbrains_mono_14, 0);
+        
+        // Store interval index as user data for click handling
+        lv_obj_set_user_data(interval_buttons_[i], (void*)(intptr_t)i);
+    }
+    
+}
+
+void DisplayManager::hideIntervalSelection() {
+    if (!interval_overlay_) {
+        return;
+    }
+    
+    
+    // Clean up overlay and buttons
+    lv_obj_del(interval_overlay_);
+    interval_overlay_ = nullptr;
+    
+    // Clear button references (they're deleted with overlay)
+    for (int i = 0; i < INTERVAL_COUNT; i++) {
+        interval_buttons_[i] = nullptr;
+    }
+}
+
+bool DisplayManager::isIntervalSelectionVisible() const {
+    return interval_overlay_ != nullptr;
+}
+
+String DisplayManager::calculateTimestampAtPosition(lv_coord_t x_pos) {
+    if (!crypto_manager_ref_) {
+        LOG_ERROR("calculateTimestampAtPosition: crypto_manager_ref_ is null");
+        return "No Data";
+    }
+    
+    const CandlestickData* candles = crypto_manager_ref_->getCandlestickData();
+    int candle_count = crypto_manager_ref_->getCandlestickCount();
+    String current_interval = crypto_manager_ref_->getCurrentCandlestickInterval();
+    
+    LOG_DEBUG("calculateTimestampAtPosition: candle_count=" + String(candle_count) + ", interval=" + current_interval);
+    
+    if (!candles || candle_count == 0) {
+        LOG_ERROR("calculateTimestampAtPosition: No candlestick data available");
+        return "Loading...";
+    }
+    
+    // Calculate chart dimensions (matching drawCandlestickChart logic)
+    lv_coord_t width = 240;
+    lv_coord_t available_width = width - 20; // 220px available
+    lv_coord_t min_candle_spacing = CANDLE_BODY_WIDTH + 2; // 7px minimum
+    int max_visible_candles = available_width / min_candle_spacing; // ~31 candles max
+    
+    int visible_candles = (candle_count < max_visible_candles) ? candle_count : max_visible_candles;
+    int extended_candles = visible_candles + 2; // Add 2 more candles extending past left edge
+    lv_coord_t candle_spacing = available_width / visible_candles;
+    
+    // Determine which candle the click corresponds to
+    // Candles are drawn from right to left, newest on right
+    // x_pos=230 (width-10) = newest candle, x_pos=10 = oldest visible candle
+    
+    // Calculate which candle index the click corresponds to
+    lv_coord_t right_edge = width - 10; // 230px
+    lv_coord_t distance_from_right = right_edge - x_pos;
+    int candle_index_from_right = distance_from_right / candle_spacing;
+    
+    // Clamp to valid range
+    if (candle_index_from_right < 0) candle_index_from_right = 0;
+    if (candle_index_from_right >= extended_candles) candle_index_from_right = extended_candles - 1;
+    
+    // Convert to actual candle array index (newest candles are at higher indices)
+    int actual_candle_index = candle_count - 1 - candle_index_from_right;
+    
+    if (actual_candle_index < 0 || actual_candle_index >= candle_count) {
+        LOG_ERROR("calculateTimestampAtPosition: Invalid candle index " + String(actual_candle_index) + " (count=" + String(candle_count) + ")");
+        return "Invalid";
+    }
+    
+    // Get timestamp and convert to readable format
+    uint64_t timestamp_ms = candles[actual_candle_index].timestamp;
+    uint64_t timestamp_s = timestamp_ms / 1000;
+    
+    LOG_DEBUG("calculateTimestampAtPosition: candle[" + String(actual_candle_index) + "] timestamp_ms=" + String((unsigned long)(timestamp_ms & 0xFFFFFFFF)) + ", timestamp_s=" + String((unsigned long)(timestamp_s & 0xFFFFFFFF)));
+    
+    // Convert Unix timestamp to date/time components
+    // Simple implementation for UTC time
+    uint64_t days = timestamp_s / 86400; // Seconds per day
+    uint64_t remaining = timestamp_s % 86400;
+    uint64_t hours = remaining / 3600;
+    uint64_t minutes = (remaining % 3600) / 60;
+    
+    // Calculate date from days since Unix epoch (Jan 1, 1970)
+    // Simple approximation - more accurate date calculation would be complex
+    uint64_t year = 1970;
+    uint64_t days_remaining = days;
+    
+    // Approximate years (accounting for leap years)
+    while (days_remaining >= 365) {
+        if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) {
+            if (days_remaining >= 366) {
+                days_remaining -= 366;
+                year++;
+            } else {
+                break;
+            }
+        } else {
+            days_remaining -= 365;
+            year++;
+        }
+    }
+    
+    // Approximate month and day (simplified)
+    uint64_t month = 1;
+    uint64_t day = days_remaining + 1;
+    
+    // Simple month calculation
+    int days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) {
+        days_in_month[1] = 29; // Leap year
+    }
+    
+    for (int m = 0; m < 12; m++) {
+        if (day <= days_in_month[m]) {
+            month = m + 1;
+            break;
+        }
+        day -= days_in_month[m];
+        month++;
+    }
+    
+    // Get current date for comparison using the newest candlestick timestamp
+    // This gives us an approximation of "today" based on the latest market data
+    uint64_t newest_timestamp_s = 0;
+    if (candle_count > 0) {
+        newest_timestamp_s = candles[candle_count - 1].timestamp / 1000;
+    }
+    
+    uint64_t newest_days = newest_timestamp_s / 86400;
+    uint64_t clicked_days = timestamp_s / 86400;
+    bool is_today = (newest_days == clicked_days);
+    
+    LOG_DEBUG("Timestamp formatting: interval=" + current_interval + ", is_today=" + String(is_today ? "true" : "false"));
+    
+    // Format based on interval and whether it's today
+    char timestamp_buffer[32];
+    
+    if (current_interval == "1m" || current_interval == "3m" || current_interval == "5m" || 
+        current_interval == "15m" || current_interval == "30m" || current_interval == "1h" || current_interval == "2h") {
+        // Short intervals: show only HH:MM if same day as today
+        if (is_today) {
+            snprintf(timestamp_buffer, sizeof(timestamp_buffer), "%02llu:%02llu", hours, minutes);
+        } else {
+            snprintf(timestamp_buffer, sizeof(timestamp_buffer), "%04llu-%02llu-%02llu %02llu:%02llu", 
+                     year, month, day, hours, minutes);
+        }
+    } else if (current_interval == "4h" || current_interval == "6h" || current_interval == "8h") {
+        // Medium intervals: always show full date and time
+        snprintf(timestamp_buffer, sizeof(timestamp_buffer), "%04llu-%02llu-%02llu %02llu:%02llu", 
+                 year, month, day, hours, minutes);
+    } else {
+        // Long intervals (12h, 1d, 1w, 1M): show date only without time
+        snprintf(timestamp_buffer, sizeof(timestamp_buffer), "%04llu-%02llu-%02llu", 
+                 year, month, day);
+    }
+    
+    return String(timestamp_buffer);
+}
+
+void DisplayManager::hidePriceIndicator() {
+    // Remove price indicator elements if they exist
+    if (price_indicator_line_ && lv_obj_is_valid(price_indicator_line_)) {
+        lv_obj_del(price_indicator_line_);
+    }
+    price_indicator_line_ = nullptr;
+    
+    if (price_indicator_horizontal_line_ && lv_obj_is_valid(price_indicator_horizontal_line_)) {
+        lv_obj_del(price_indicator_horizontal_line_);
+    }
+    price_indicator_horizontal_line_ = nullptr;
+    
+    if (price_indicator_label_ && lv_obj_is_valid(price_indicator_label_)) {
+        lv_obj_del(price_indicator_label_);
+    }
+    price_indicator_label_ = nullptr;
+    
+    // Reset show time
+    price_indicator_show_time_ = 0;
+    
+    LOG_DEBUG("Price indicator hidden");
+}
+
+void DisplayManager::checkPriceIndicatorTimeout() {
+    // Only check timeout if price indicator is currently shown
+    if (price_indicator_show_time_ > 0 && price_indicator_line_ != nullptr) {
+        unsigned long current_time = millis();
+        if (current_time - price_indicator_show_time_ >= 2000) { // 2 seconds timeout
+            hidePriceIndicator();
+            LOG_DEBUG("Price indicator auto-hidden after timeout");
+        }
+    }
 }
 

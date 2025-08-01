@@ -3,8 +3,30 @@
 #include "constants.h"
 #include <ArduinoJson.h>
 
+// Global interval constants implementation
+const char* SUPPORTED_INTERVALS[INTERVAL_COUNT] = {
+    "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "1w", "1M"
+};
+
+const unsigned long INTERVAL_REFRESH_RATES[INTERVAL_COUNT] = {
+    60000UL,        // 1m
+    180000UL,       // 3m
+    300000UL,       // 5m
+    900000UL,       // 15m
+    1800000UL,      // 30m
+    3600000UL,      // 1h
+    7200000UL,      // 2h
+    14400000UL,     // 4h
+    21600000UL,     // 6h
+    28800000UL,     // 8h
+    43200000UL,     // 12h
+    86400000UL,     // 1d
+    604800000UL,    // 1w
+    2592000000UL    // 1M (30 days)
+};
+
 BinanceDataManager::BinanceDataManager() 
-    : coin_count_(0), candlestick_count_(0), candlestick_last_update_(0), symbols_shown_(false) {
+    : coin_count_(0), candlestick_count_(0), candlestick_last_update_(0), symbols_shown_(false), candlestick_interval_("1h") {
     // Initialize coin data array
     for (int i = 0; i < MAX_COINS; i++) {
         coin_data_[i].valid = false;
@@ -257,7 +279,7 @@ bool BinanceDataManager::parseCandlestickJson(const String& payload) {
         }
         
         if (kline.size() >= 6) {  // Binance klines have at least 6 elements
-            candlestick_data_[candlestick_count_].timestamp = kline[0].as<unsigned long>();
+            candlestick_data_[candlestick_count_].timestamp = kline[0].as<uint64_t>();
             candlestick_data_[candlestick_count_].open = kline[1].as<float>();
             candlestick_data_[candlestick_count_].high = kline[2].as<float>();
             candlestick_data_[candlestick_count_].low = kline[3].as<float>();
@@ -315,6 +337,35 @@ bool BinanceDataManager::fetchCandlestickDataSync(const String& symbol, const St
         LOG_ERROR("Sync candlestick fetch failed: JSON parsing error");
         return false;
     }
+}
+
+bool BinanceDataManager::setCurrentCandlestickInterval(const String& interval) {
+    if (!isValidInterval(interval)) {
+        LOG_WARN("Invalid interval provided: " + interval);
+        return false;
+    }
+    
+    candlestick_interval_ = interval;
+    LOG_INFO("Candlestick interval changed to: " + interval);
+    return true;
+}
+
+bool BinanceDataManager::isValidInterval(const String& interval) const {
+    for (int i = 0; i < INTERVAL_COUNT; i++) {
+        if (interval == SUPPORTED_INTERVALS[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned long BinanceDataManager::getIntervalRefreshRate(const String& interval) const {
+    for (int i = 0; i < INTERVAL_COUNT; i++) {
+        if (interval == SUPPORTED_INTERVALS[i]) {
+            return INTERVAL_REFRESH_RATES[i];
+        }
+    }
+    return 0; // Invalid interval
 }
 
 
