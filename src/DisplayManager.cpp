@@ -1,5 +1,6 @@
 #include "DisplayManager.h"
 #include "constants.h"
+#include "jetbrains_mono_fonts.h"
 
 DisplayManager::DisplayManager() 
     : status_label_(nullptr), wifi_info_label_(nullptr), 
@@ -107,7 +108,7 @@ void DisplayManager::createStatusLabel() {
         lv_obj_set_width(status_label_, LV_SIZE_CONTENT);
         lv_obj_set_height(status_label_, LV_SIZE_CONTENT);
         lv_obj_align(status_label_, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_text_font(status_label_, LV_FONT_DEFAULT, 0);
+        lv_obj_set_style_text_font(status_label_, &jetbrains_mono_12, 0);
     }
 }
 
@@ -157,7 +158,7 @@ void DisplayManager::createCoinDisplay(const CoinData* coin_data, int coin_count
             lv_label_set_text(base_symbol_label, base_symbol.c_str());
             lv_obj_align(base_symbol_label, LV_ALIGN_LEFT_MID, 3, -9); // Same vertical position as change indicators (9px above center)
             lv_obj_set_style_text_color(base_symbol_label, is_websocket_connected ? COLOR_GREY_TEXT : COLOR_MUTED_GREY, 0);
-            lv_obj_set_style_text_font(base_symbol_label, &lv_font_montserrat_12, 0); // Same as change indicators
+            lv_obj_set_style_text_font(base_symbol_label, &jetbrains_mono_12, 0); // Same as change indicators
             
             // Quote symbol (below base symbol, more muted)
             lv_obj_t* quote_symbol_label = lv_label_create(coin_container);
@@ -166,7 +167,7 @@ void DisplayManager::createCoinDisplay(const CoinData* coin_data, int coin_count
             // Make it even more muted (75% mix with background)
             lv_color_t very_muted_color = lv_color_mix(COLOR_GREY_TEXT, COLOR_DARK_BG, 64); // 25% grey, 75% background
             lv_obj_set_style_text_color(quote_symbol_label, very_muted_color, 0);
-            lv_obj_set_style_text_font(quote_symbol_label, &lv_font_montserrat_12, 0); // Same as change indicators
+            lv_obj_set_style_text_font(quote_symbol_label, &jetbrains_mono_12, 0); // Same as change indicators
 
             // 24h change (top right) - fixed position from center
             lv_obj_t* change_24h_label = lv_label_create(coin_container);
@@ -181,7 +182,7 @@ void DisplayManager::createCoinDisplay(const CoinData* coin_data, int coin_count
                 change_24h_color = (coin_data[i].change_24h >= 0) ? COLOR_MUTED_GREEN : COLOR_MUTED_RED;
             }
             lv_obj_set_style_text_color(change_24h_label, change_24h_color, 0);
-            lv_obj_set_style_text_font(change_24h_label, &lv_font_montserrat_12, 0);
+            lv_obj_set_style_text_font(change_24h_label, &jetbrains_mono_12, 0);
 
             // 24h change percent (bottom right) - fixed position from center
             lv_obj_t* change_percent_label = lv_label_create(coin_container);
@@ -196,7 +197,7 @@ void DisplayManager::createCoinDisplay(const CoinData* coin_data, int coin_count
                 change_percent_color = (coin_data[i].change_percent_24h >= 0) ? COLOR_MUTED_GREEN : COLOR_MUTED_RED;
             }
             lv_obj_set_style_text_color(change_percent_label, change_percent_color, 0);
-            lv_obj_set_style_text_font(change_percent_label, &lv_font_montserrat_12, 0);
+            lv_obj_set_style_text_font(change_percent_label, &jetbrains_mono_12, 0);
 
             // Price with larger font and styling (centered) - remove dollar sign as requested
             lv_obj_t* price_label = lv_label_create(coin_container);
@@ -204,7 +205,7 @@ void DisplayManager::createCoinDisplay(const CoinData* coin_data, int coin_count
             lv_label_set_text(price_label, price_text.c_str());
             lv_obj_align(price_label, LV_ALIGN_CENTER, 0, 0);
             lv_obj_set_style_text_color(price_label, is_websocket_connected ? COLOR_WHITE_TEXT : COLOR_MUTED_WHITE, 0);
-            lv_obj_set_style_text_font(price_label, &lv_font_montserrat_22, 0);
+            lv_obj_set_style_text_font(price_label, &jetbrains_mono_22, 0);
         }
     }
 
@@ -250,7 +251,7 @@ void DisplayManager::showAPModeScreen(const String& ssid) {
     lv_label_set_text(title_label, "WiFi Configuration Mode");
     lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 10);
     lv_obj_set_style_text_color(title_label, COLOR_WHITE_TEXT, 0);
-    lv_obj_set_style_text_font(title_label, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(title_label, &jetbrains_mono_16, 0);
     
     // Instructions
     lv_obj_t* instruction_label = lv_label_create(lv_screen_active());
@@ -264,7 +265,7 @@ void DisplayManager::showAPModeScreen(const String& ssid) {
     lv_label_set_text(ssid_label, ("" + ssid).c_str());
     lv_obj_align(ssid_label, LV_ALIGN_TOP_MID, 0, 70);
     lv_obj_set_style_text_color(ssid_label, COLOR_BRIGHT_GREEN, 0);
-    lv_obj_set_style_text_font(ssid_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(ssid_label, &jetbrains_mono_14, 0);
     
     // Web portal instruction
     lv_obj_t* web_label = lv_label_create(lv_screen_active());
@@ -279,7 +280,7 @@ void DisplayManager::showAPModeScreen(const String& ssid) {
     lv_label_set_text(ip_label, "Configuration URL:\n192.168.4.1");
     lv_obj_align(ip_label, LV_ALIGN_TOP_MID, 0, 200);
     lv_obj_set_style_text_color(ip_label, COLOR_BRIGHT_GREEN, 0);
-    lv_obj_set_style_text_font(ip_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(ip_label, &jetbrains_mono_14, 0);
     lv_obj_set_style_text_align(ip_label, LV_TEXT_ALIGN_CENTER, 0);
     
     // Force immediate display refresh
@@ -381,7 +382,7 @@ void DisplayManager::showDetailScreen(int coinIndex, const BinanceDataManager& c
     lv_label_set_text(base_label, base_symbol.c_str());
     lv_obj_align(base_label, LV_ALIGN_LEFT_MID, 3, -9); // Same vertical position as change indicators
     lv_obj_set_style_text_color(base_label, COLOR_GREY_TEXT, 0);
-    lv_obj_set_style_text_font(base_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(base_label, &jetbrains_mono_12, 0);
     
     // Quote symbol (below base symbol, more muted)
     lv_obj_t* quote_label = lv_label_create(coin_info_container_);
@@ -390,14 +391,14 @@ void DisplayManager::showDetailScreen(int coinIndex, const BinanceDataManager& c
     // Make it even more muted (75% mix with background)
     lv_color_t very_muted_color = lv_color_mix(COLOR_GREY_TEXT, COLOR_DARK_BG, 64); // 25% grey, 75% background
     lv_obj_set_style_text_color(quote_label, very_muted_color, 0);
-    lv_obj_set_style_text_font(quote_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(quote_label, &jetbrains_mono_12, 0);
     
     // Price with larger font and styling (centered)
     lv_obj_t* price_label = lv_label_create(coin_info_container_);
     lv_label_set_text(price_label, formatPrice(coin.price).c_str());
     lv_obj_align(price_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_text_color(price_label, COLOR_WHITE_TEXT, 0);
-    lv_obj_set_style_text_font(price_label, &lv_font_montserrat_22, 0);
+    lv_obj_set_style_text_font(price_label, &jetbrains_mono_22, 0);
     
     // 24h change (top right) - fixed position from center
     lv_obj_t* change_label = lv_label_create(coin_info_container_);
@@ -405,7 +406,7 @@ void DisplayManager::showDetailScreen(int coinIndex, const BinanceDataManager& c
     lv_label_set_text(change_label, change_text.c_str());
     lv_obj_align(change_label, LV_ALIGN_RIGHT_MID, 0, -9); // 9px above center
     lv_obj_set_style_text_color(change_label, coin.change_24h >= 0 ? COLOR_BRIGHT_GREEN : COLOR_BRIGHT_RED, 0);
-    lv_obj_set_style_text_font(change_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(change_label, &jetbrains_mono_12, 0);
     
     // 24h change percent (bottom right) - fixed position from center
     lv_obj_t* percent_label = lv_label_create(coin_info_container_);
@@ -413,7 +414,7 @@ void DisplayManager::showDetailScreen(int coinIndex, const BinanceDataManager& c
     lv_label_set_text(percent_label, percent_text.c_str());
     lv_obj_align(percent_label, LV_ALIGN_RIGHT_MID, 0, 9); // 9px below center
     lv_obj_set_style_text_color(percent_label, coin.change_percent_24h >= 0 ? COLOR_BRIGHT_GREEN : COLOR_BRIGHT_RED, 0);
-    lv_obj_set_style_text_font(percent_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(percent_label, &jetbrains_mono_12, 0);
     
     // Create chart container below coin info - no padding, fill exact space
     chart_container_ = lv_obj_create(screen);
@@ -449,6 +450,7 @@ void DisplayManager::showDetailScreen(int coinIndex, const BinanceDataManager& c
         lv_label_set_text(loading_label, "Loading chart data...");
         lv_obj_align(loading_label, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_text_color(loading_label, COLOR_GREY_TEXT, 0);
+        lv_obj_set_style_text_font(loading_label, &jetbrains_mono_12, 0);
     }
     
     // Force immediate display refresh
@@ -822,6 +824,7 @@ void DisplayManager::updateChartArea(const BinanceDataManager& crypto_manager) {
         lv_label_set_text(loading_label, "Loading chart data...");
         lv_obj_align(loading_label, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_text_color(loading_label, COLOR_GREY_TEXT, 0);
+        lv_obj_set_style_text_font(loading_label, &jetbrains_mono_12, 0);
     }
     
     // Force display refresh
@@ -917,7 +920,7 @@ void DisplayManager::showPriceIndicator(lv_coord_t x_pos, lv_coord_t y_pos, floa
     
     // Style the text
     lv_obj_set_style_text_color(price_text, lv_color_hex(0x0080FF), 0); // Blue text
-    lv_obj_set_style_text_font(price_text, &lv_font_montserrat_14, 0); // Match min/max price labels
+    lv_obj_set_style_text_font(price_text, &jetbrains_mono_14, 0); // Match min/max price labels
     
     // Position in top-left corner with text aligned to max price text level
     // Max price is at offset 5px from top, we need 2-4px higher and 3-4px more left

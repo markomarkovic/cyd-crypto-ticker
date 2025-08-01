@@ -1,0 +1,19 @@
+{
+  "name": "jetbrains-mono-fonts",
+  "version": "1.0.0",
+  "description": "JetBrains Mono fonts for LVGL",
+  "keywords": ["fonts", "jetbrains-mono", "lvgl"],
+  "frameworks": ["arduino", "espidf"],
+  "platforms": ["espressif32"],
+  "dependencies": [
+    {
+      "name": "lvgl",
+      "version": "*"
+    }
+  ],
+  "export": {
+    "include": [
+      "*.h"
+    ]
+  }
+}
