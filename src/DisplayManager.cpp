@@ -213,7 +213,9 @@ void DisplayManager::createCoinDisplay(const CoinData* coin_data, int coin_count
 
 String DisplayManager::formatPrice(float price) const {
     // Format price with comma separators for better readability
-    String price_str = String(price, 2);
+    // Don't show decimal places if price >= 100
+    int decimal_places = (price >= 100.0f) ? 0 : 2;
+    String price_str = String(price, decimal_places);
 
     // Find the decimal point
     int decimal_pos = price_str.indexOf('.');
