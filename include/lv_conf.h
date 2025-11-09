@@ -53,7 +53,7 @@
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
     /*Size of the memory available for `lv_malloc()` in bytes (>= 2kB)*/
-    #define LV_MEM_SIZE (32 * 1024U)          /*[bytes]*/ /* Reduced from 64KB to save flash */
+    #define LV_MEM_SIZE (13 * 1024U)          /*[bytes]*/ /* Reduced to 13KB to enable screenshots */
 
     /*Size of the memory expand for `lv_malloc()` in bytes*/
     #define LV_MEM_POOL_EXPAND_SIZE 0
@@ -126,12 +126,12 @@
  * and can't be drawn in chunks. */
 
 /*The target buffer size for simple layer chunks.*/
-#define LV_DRAW_LAYER_SIMPLE_BUF_SIZE    (24 * 1024)   /*[bytes]*/
+#define LV_DRAW_LAYER_SIMPLE_BUF_SIZE    (8 * 1024)   /*[bytes]*/ /* Reduced from 24KB to free memory for screenshots */
 
 /* The stack size of the drawing thread.
  * NOTE: If FreeType or ThorVG is enabled, it is recommended to set it to 32KB or more.
  */
-#define LV_DRAW_THREAD_STACK_SIZE    (8 * 1024)   /*[bytes]*/
+#define LV_DRAW_THREAD_STACK_SIZE    (4 * 1024)   /*[bytes]*/ /* Reduced from 8KB to free memory for screenshots */
 
 #define LV_USE_DRAW_SW 1
 #if LV_USE_DRAW_SW == 1
@@ -861,7 +861,7 @@
  *==================*/
 
 /*1: Enable API to take snapshot for object*/
-#define LV_USE_SNAPSHOT 0
+#define LV_USE_SNAPSHOT 1
 
 /*1: Enable system monitor component*/
 #define LV_USE_SYSMON   0

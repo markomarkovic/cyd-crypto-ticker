@@ -11,6 +11,7 @@
 
 #include "ApplicationController.h"
 #include "constants.h"
+#include "ScreenshotManager.h"
 #include <lvgl.h>
 
 ApplicationController::ApplicationController() 
@@ -130,10 +131,6 @@ void ApplicationController::startAPModeWithScan() {
 }
 
 void ApplicationController::performInitialSetup() {
-    LOG_DEBUG("");
-    LOG_DEBUG("Connected to WiFi! IP address: ");
-    LOG_DEBUG(network_manager_->getLocalIP());
-    
     // Load symbols configuration and handle new configuration if available
     if (network_manager_->hasNewSymbolsConfig()) {
         String new_symbols = network_manager_->getNewSymbols();
@@ -141,24 +138,24 @@ void ApplicationController::performInitialSetup() {
         network_manager_->clearNewSymbolsConfig();
         LOG_DEBUG("New symbols configuration saved");
     }
-    
+
     // Load stored symbols configuration
     String symbols;
     if (!network_manager_->loadStoredSymbolsConfig(symbols)) {
         display_manager_->showErrorMessage("No symbols configuration found.\nPlease configure via web portal.");
         return;
     }
-    
+
     // Parse symbols for crypto data
     crypto_manager_->parseSymbols(symbols.c_str());
-    
+
     display_manager_->showConnectingMessage("Connecting to real-time data...");
-    
+
     // Initialize WebSocket connection
     setupWebSocketConnection(symbols);
-    
+
     showInitialSetupComplete();
-    
+
     updateLEDStatus();
 }
 
@@ -290,10 +287,17 @@ void ApplicationController::handleNormalOperation() {
         websocket_manager_->poll();
         websocket_manager_->processReconnection();
     }
-    
-    
+
     updateLEDStatus();
     updateHardwareControls();
+
+    // Check for screenshot request (short button press in normal mode)
+    if (hardware_controller_->isShortPressDetected()) {
+        LOG_INFO("Screenshot requested via button press");
+        hardware_controller_->clearShortPressDetected();
+        outputScreenshotToSerial(websocket_manager_);
+    }
+
     handleTouchEvents();
     handleAutomaticChartRefresh();
 }
@@ -701,5 +705,20 @@ void ApplicationController::displaySystemStats() {
         last_free_heap = free_heap;
         last_millis = now;
     }
+}
+
+void ApplicationController::freeMaxMemoryForScreenshot() {
+    LOG_INFO("Freeing maximum memory for screenshot...");
+    LOG_INFOF("Free heap before: %u bytes", ESP.getFreeHeap());
+
+    // Disconnect WebSocket completely
+    if (websocket_manager_) {
+        LOG_DEBUG("Disconnecting WebSocket");
+        websocket_manager_->disconnect();
+    }
+
+    // Note: crypto_manager_ data is static arrays, can't free without realloc
+
+    LOG_INFOF("Free heap after cleanup: %u bytes", ESP.getFreeHeap());
 }
 

@@ -188,12 +188,17 @@ void WebSocketManager::webSocketEventWrapper(WStype_t type, uint8_t *payload, si
 void WebSocketManager::onWebSocketEvent(WStype_t type, uint8_t *payload, size_t length) {
     switch (type) {
         case WStype_DISCONNECTED:
-            LOG_INFOF("WebSocket Disconnected (was connected for %lu ms)", 
+            LOG_INFOF("WebSocket Disconnected (was connected for %lu ms)",
                      last_message_time_ > 0 ? millis() - last_message_time_ : 0);
             LOG_DEBUGF("Free heap at disconnect: %d", ESP.getFreeHeap());
             is_connected_ = false;
             updateConnectionStatus("Disconnected");
-            startReconnection();
+            // Only start reconnection if not paused for memory cleanup
+            if (!paused_for_memory_cleanup_) {
+                startReconnection();
+            } else {
+                LOG_DEBUG("Skipping reconnection - paused for memory cleanup");
+            }
             break;
             
         case WStype_CONNECTED:
