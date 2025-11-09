@@ -33,13 +33,14 @@ This project should supports all Sunton ESP32 display boards, you can check the 
 
 ### Prerequisites
 
-1. **PlatformIO**: Install PlatformIO Core or IDE
+1. **uv**: Install uv for running PlatformIO commands
 
    ```bash
-   # Via pip
-   pip install platformio
+   # Install uv (recommended)
+   curl -LsSf https://astral.sh/uv/install.sh | sh
 
-   # Or install PlatformIO IDE for VS Code
+   # Or via pip
+   pip install uv
    ```
 
 2. **No API Key Required**: Uses free Binance WebSocket API for real-time cryptocurrency data
@@ -66,14 +67,14 @@ This project should supports all Sunton ESP32 display boards, you can check the 
 4. **Build and upload**:
 
    ```bash
-   # Build the project
-   platformio run
+   # Using Makefile (recommended)
+   make upload-monitor
 
-   # Upload to your device
-   platformio run -t upload
+   # Or using uv directly
+   uv tool run platformio run -t upload -t monitor
 
-   # Monitor serial output
-   platformio run -t monitor
+   # See all available commands
+   make help
    ```
 
 ## 🚀 Usage
@@ -172,18 +173,21 @@ The BOOT button provides several configuration options:
 
 ### Build Commands
 
+See all available commands with `make help`. Common commands:
+
 ```bash
-# Clean build
-platformio run -t clean
+# Using Makefile
+make build              # Build firmware
+make upload-monitor     # Upload and monitor (most common)
+make clean              # Clean build files
+make update-deps        # Update dependencies
+make all                # Clean, build, upload, and monitor
 
-# Build for specific environment
-platformio run -e esp32-cyd
-
-# Upload and monitor
-platformio run -t upload -t monitor
-
-# Update dependencies
-platformio lib update
+# Using uv directly
+uv tool run platformio run                     # Build
+uv tool run platformio run -t upload -t monitor  # Upload and monitor
+uv tool run platformio run -t clean            # Clean
+uv tool run platformio lib update              # Update dependencies
 ```
 
 ### Memory Optimization

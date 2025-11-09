@@ -30,34 +30,75 @@ This is a **real-time cryptocurrency price display application** for ESP32-based
 
 ### Prerequisites
 
-- **PlatformIO** must be installed (`python -m platformio` or `pio` command)
+- **uv** must be installed for running PlatformIO commands
 - **No API Key Required** - Uses free Binance WebSocket API for real-time data
 - Project uses ESP32 Arduino framework
 - Configuration is handled through built-in HTML web interface
 
-### Core Commands
+### Makefile Commands (Recommended)
+
+The project includes a Makefile to simplify common development tasks:
+
+```bash
+# Show all available commands
+make help
+
+# Build the project
+make build
+
+# Upload firmware to device
+make upload
+
+# Monitor serial output
+make monitor
+
+# Upload and monitor (most common)
+make upload-monitor
+
+# Clean build files
+make clean
+
+# Update library dependencies
+make update-deps
+
+# Complete workflow: clean, build, upload, and monitor
+make all
+
+# Build PicoCSS styles for web configuration interface
+make web-build
+
+# Update embedded CSS in NetworkManager.cpp
+make web-update
+
+# Test Binance symbol discovery
+make test-symbols
+```
+
+### Direct PlatformIO Commands (using uv)
+
+If you prefer to use PlatformIO commands directly:
 
 ```bash
 # Build the project
-platformio run
+uv tool run platformio run
 
 # Build for specific environment (default: esp32-cyd)
-platformio run -e esp32-cyd
+uv tool run platformio run -e esp32-cyd
 
 # Upload to device
-platformio run -t upload
+uv tool run platformio run -t upload
 
 # Upload and monitor serial output
-platformio run -t upload -t monitor
+uv tool run platformio run -t upload -t monitor
 
 # Monitor serial output only
-platformio run -t monitor
+uv tool run platformio run -t monitor
 
 # Clean build files
-platformio run -t clean
+uv tool run platformio run -t clean
 
 # Update dependencies
-platformio lib update
+uv tool run platformio lib update
 ```
 
 ### Configuration
