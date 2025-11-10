@@ -1,4 +1,4 @@
-.PHONY: help build upload monitor upload-monitor clean update-deps test-symbols web-build web-update all
+.PHONY: help build upload monitor upload-monitor clean update-deps test-symbols web-build web-update extract-screenshot all
 
 help:
 	@echo "CYD Crypto Ticker - Makefile Commands"
@@ -18,6 +18,9 @@ help:
 	@echo "Web Interface:"
 	@echo "  make web-build       - Build PicoCSS styles"
 	@echo "  make web-update      - Update embedded CSS in NetworkManager.cpp"
+	@echo ""
+	@echo "Screenshots:"
+	@echo "  make extract-screenshot - Extract screenshot from screenshot.log to PNG"
 	@echo ""
 
 build:
@@ -46,5 +49,8 @@ web-build:
 
 web-update:
 	cd picocss && npm run update-cpp
+
+extract-screenshot:
+	uv run --with pillow python extract_screenshot.py screenshot.log
 
 all: clean build upload-monitor

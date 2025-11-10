@@ -78,17 +78,19 @@ def extract_screenshot(log_file):
 
     print(f"Converted to {len(raw_data)} bytes")
 
-    # Save raw RGB565 file
-    raw_file = Path(log_file).stem + ".raw"
+    # Save raw RGB565 file with timestamp
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    raw_file = f"screenshot_{timestamp}.raw"
     with open(raw_file, 'wb') as f:
         f.write(raw_data)
     print(f"Saved raw file: {raw_file}")
 
-    return raw_file, width, height
+    return raw_file, width, height, timestamp
 
-def convert_to_png(raw_file, width, height):
+def convert_to_png(raw_file, width, height, timestamp):
     """Convert RGB565 raw file to PNG using Python PIL."""
-    png_file = Path(raw_file).stem + ".png"
+    png_file = f"screenshot_{timestamp}.png"
 
     print(f"\nConverting to PNG: {png_file}")
 
@@ -155,15 +157,21 @@ def main():
     if not result:
         sys.exit(1)
 
-    raw_file, width, height = result
+    raw_file, width, height, timestamp = result
 
-    png_file = convert_to_png(raw_file, width, height)
+    png_file = convert_to_png(raw_file, width, height, timestamp)
     if png_file:
+        # Clean up raw file after successful conversion
+        try:
+            Path(raw_file).unlink()
+            print(f"Cleaned up raw file: {raw_file}")
+        except Exception as e:
+            print(f"Warning: Could not delete raw file: {e}")
         print(f"\n✓ Screenshot saved as: {png_file}")
     else:
         print(f"\n✓ Raw data saved as: {raw_file}")
         print(f"  You can manually convert with:")
-        print(f"  convert -depth 16 -size {width}x{height} -endian LSB rgb:{raw_file} screenshot.png")
+        print(f"  convert -depth 16 -size {width}x{height} -endian LSB rgb:{raw_file} screenshot_{timestamp}.png")
 
 if __name__ == '__main__':
     main()
