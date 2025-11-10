@@ -1,4 +1,4 @@
-.PHONY: help build upload monitor upload-monitor clean update-deps test-symbols web-build web-update all
+.PHONY: help build upload monitor upload-monitor clean update-deps test-symbols web-build web-update docs docs-clean docs-open all
 
 help:
 	@echo "CYD Crypto Ticker - Makefile Commands"
@@ -18,6 +18,11 @@ help:
 	@echo "Web Interface:"
 	@echo "  make web-build       - Build PicoCSS styles"
 	@echo "  make web-update      - Update embedded CSS in NetworkManager.cpp"
+	@echo ""
+	@echo "Documentation:"
+	@echo "  make docs            - Generate Doxygen documentation"
+	@echo "  make docs-clean      - Clean generated documentation"
+	@echo "  make docs-open       - Generate and open documentation in browser"
 	@echo ""
 
 build:
@@ -46,5 +51,14 @@ web-build:
 
 web-update:
 	cd picocss && npm run update-cpp
+
+docs:
+	./generate_docs.sh
+
+docs-clean:
+	./generate_docs.sh clean
+
+docs-open:
+	./generate_docs.sh open
 
 all: clean build upload-monitor
