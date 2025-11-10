@@ -111,7 +111,8 @@ The project uses a built-in web interface for configuration:
 - **Persistent Storage**: Settings saved to ESP32 flash memory
 - **Factory Reset**: Hold BOOT button for 10+ seconds to clear all configuration
 - **Reconfiguration**: Hold BOOT button for 5-9 seconds to restart configuration mode
-- **Cancel Configuration**: Short press (< 5 seconds) BOOT button during configuration mode to cancel and return to normal operation
+- **Screenshot Capture**: Quick press (< 1 second) BOOT button to capture screenshot via serial (works in both normal and configuration modes)
+- **Cancel Configuration**: Press BOOT button for 1-5 seconds during configuration mode to cancel and return to normal operation
 
 #### Web Interface Features
 
@@ -361,7 +362,7 @@ node update-cpp.js
 - **Binance Symbols**: Select up to 6 cryptocurrency trading pairs (no API key required)
 - **Network Settings**: WiFi credentials with automatic connection management
 - **Persistent Storage**: All settings saved to ESP32 flash memory using Preferences library
-- **Reset Options**: Configuration reset (5s button) and factory reset (10s button)
+- **Reset Options**: Screenshot capture (<1s button), cancel config (1-5s button in AP mode), reconfiguration (5-10s button), and factory reset (10s+ button)
 
 ### Hardware Features
 
@@ -371,7 +372,7 @@ node update-cpp.js
   - Connection status: Red blinking (disconnected), yellow blinking (reconnecting), green 3x blinks (connected)
   - Market status: Solid green (majority coins up), solid red (majority coins down), off (balanced)
 - **Light Sensor**: Automatic display brightness adjustment based on ambient light (separate from LED status)
-- **BOOT Button**: Configuration management (5s=reconfigure, 10s=factory reset)
+- **BOOT Button**: Multi-function control (<1s=screenshot, 1-5s=cancel config in AP mode, 5-10s=reconfigure, 10s+=factory reset)
 - **Audio**: Speaker output available (GPIO 26)
 - **Storage**: MicroSD card slot support
 - **Connectivity**: WiFi with automatic reconnection management
