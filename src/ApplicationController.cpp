@@ -183,31 +183,40 @@ void ApplicationController::handleAPMode() {
 void ApplicationController::handleAPModeButtons() {
     // Update custom adaptive brightness
     hardware_controller_->updateAdaptiveBrightness();
-    
+
     // Check for button presses
     hardware_controller_->updateButtonStatus();
-    
-    // Check for short press (cancel configuration)
+
+    // Check for short press (cancel configuration or screenshot)
     if (hardware_controller_->isShortPressDetected()) {
-        LOG_DEBUG("Short button press detected in AP mode - canceling configuration and restarting...");
-        
+        unsigned long press_time = hardware_controller_->getButtonPressTime();
+
         // Clear the short press flag
         hardware_controller_->clearShortPressDetected();
-        
-        // Visual feedback - flash blue LED 2 times to indicate cancel
-        for (int i = 0; i < 2; i++) {
-            hardware_controller_->setLED(false, false, true); // Blue
-            delay(150);
-            hardware_controller_->setLED(false, false, false); // Off
-            delay(150);
+
+        // Very short press (< 1 second) = screenshot
+        // Longer short press (1-5 seconds) = cancel configuration
+        if (press_time < 1000) {
+            LOG_INFO("Screenshot requested via button press in AP mode");
+            outputScreenshotToSerial(nullptr); // No WebSocket in AP mode
+        } else {
+            LOG_DEBUG("Short button press detected in AP mode - canceling configuration and restarting...");
+
+            // Visual feedback - flash blue LED 2 times to indicate cancel
+            for (int i = 0; i < 2; i++) {
+                hardware_controller_->setLED(false, false, true); // Blue
+                delay(150);
+                hardware_controller_->setLED(false, false, false); // Off
+                delay(150);
+            }
+
+            // Clear reconfiguration flag so it will try to connect with stored credentials
+            network_manager_->clearReconfigurationFlag();
+
+            LOG_DEBUG("Configuration canceled. Restarting...");
+            delay(1000);
+            ESP.restart();
         }
-        
-        // Clear reconfiguration flag so it will try to connect with stored credentials
-        network_manager_->clearReconfigurationFlag();
-        
-        LOG_DEBUG("Configuration canceled. Restarting...");
-        delay(1000);
-        ESP.restart();
     }
     
     // Check if reconfiguration was requested (5+ second press detected)
