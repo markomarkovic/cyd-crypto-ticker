@@ -352,7 +352,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Documentation**: Check the `CLAUDE.md` file for detailed development notes
+- **Documentation**:
+  - Online API documentation: Check GitHub Pages (automatically generated from code)
+  - Development notes: See `CLAUDE.md` for detailed development guidelines
 - **Issues**: Report bugs and feature requests on GitHub Issues
 - **Discussions**: Join the community discussions for help and ideas
 - **Hardware**: Refer to `boards/README.md` for board-specific information

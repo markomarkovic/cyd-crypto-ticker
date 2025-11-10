@@ -72,6 +72,15 @@ make web-update
 
 # Test Binance symbol discovery
 make test-symbols
+
+# Generate Doxygen documentation
+make docs
+
+# Clean generated documentation
+make docs-clean
+
+# Generate and open documentation in browser
+make docs-open
 ```
 
 ### Direct PlatformIO Commands (using uv)
@@ -375,6 +384,59 @@ node update-cpp.js
 - **Audio**: Speaker output available (GPIO 26)
 - **Storage**: MicroSD card slot support
 - **Connectivity**: WiFi with automatic reconnection management
+
+## Documentation
+
+### Automatic GitHub Pages Deployment
+
+The project includes automatic documentation generation and deployment using GitHub Actions:
+
+- **Workflow**: `.github/workflows/deploy-docs.yml`
+- **Trigger**: Automatically runs on every push to the `main` branch
+- **Documentation Tool**: Doxygen with custom configuration
+- **Output**: HTML documentation deployed to GitHub Pages
+
+#### Setting Up GitHub Pages
+
+To enable GitHub Pages for your repository:
+
+1. Go to your GitHub repository settings
+2. Navigate to **Settings** → **Pages**
+3. Under **Build and deployment**:
+   - **Source**: Select "GitHub Actions"
+4. Push a commit to the `main` branch to trigger the workflow
+5. Once the workflow completes, your documentation will be available at:
+   - `https://<username>.github.io/<repository-name>/`
+
+#### Local Documentation Generation
+
+You can generate documentation locally using the Makefile commands:
+
+```bash
+# Generate documentation
+make docs
+
+# Clean generated documentation
+make docs-clean
+
+# Generate and open in browser
+make docs-open
+```
+
+Or use the documentation generation script directly:
+
+```bash
+# Generate documentation
+./generate_docs.sh
+
+# Clean only
+./generate_docs.sh clean
+
+# Generate and open in browser
+./generate_docs.sh open
+```
+
+The generated documentation will be available in the `docs/html/` directory (gitignored).
 
 ## Development Notes
 
