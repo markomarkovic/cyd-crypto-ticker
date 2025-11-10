@@ -1249,9 +1249,9 @@ String DisplayManager::calculateTimestampAtPosition(lv_coord_t x_pos) {
     bool is_today = (newest_days == clicked_days);
     
     LOG_DEBUG("Timestamp formatting: interval=" + current_interval + ", is_today=" + String(is_today ? "true" : "false"));
-    
+
     // Format based on interval and whether it's today
-    char timestamp_buffer[32];
+    char timestamp_buffer[64];
     
     if (current_interval == "1m" || current_interval == "3m" || current_interval == "5m" || 
         current_interval == "15m" || current_interval == "30m" || current_interval == "1h" || current_interval == "2h") {

@@ -277,15 +277,24 @@ private:
     // WebSocket methods
     /**
      * @brief Set up WebSocket connection to Binance API
-     * 
+     *
      * Initializes WebSocket connection to Binance for real-time
      * cryptocurrency price updates. Subscribes to specified trading pairs.
-     * 
+     *
      * @param symbols Comma-separated string of cryptocurrency symbols to monitor
      *                (e.g., "BTCUSDT,ETHUSDT,SOLUSDT")
      */
     void setupWebSocketConnection(const String& symbols);
-    
+
+    /**
+     * @brief Free maximum memory for screenshot capture
+     *
+     * Attempts to free as much memory as possible by disconnecting WebSocket
+     * and clearing cached data to enable screenshot capture without running
+     * out of memory.
+     */
+    void freeMaxMemoryForScreenshot();
+
     // Manager instances
     /**
      * @brief Network and WiFi management instance

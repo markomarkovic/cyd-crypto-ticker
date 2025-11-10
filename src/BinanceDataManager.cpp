@@ -25,8 +25,8 @@ const unsigned long INTERVAL_REFRESH_RATES[INTERVAL_COUNT] = {
     2592000000UL    // 1M (30 days)
 };
 
-BinanceDataManager::BinanceDataManager() 
-    : coin_count_(0), candlestick_count_(0), candlestick_last_update_(0), symbols_shown_(false), candlestick_interval_("1h") {
+BinanceDataManager::BinanceDataManager()
+    : coin_count_(0), candlestick_count_(0), candlestick_last_update_(0), candlestick_interval_("1h"), symbols_shown_(false) {
     // Initialize coin data array
     for (int i = 0; i < MAX_COINS; i++) {
         coin_data_[i].valid = false;
