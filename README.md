@@ -18,6 +18,75 @@ A real-time cryptocurrency price display application for ESP32-based "Cheap Yell
 - **Multi-Board Support**: Compatible with 40+ different Sunton ESP32 display variants
 - **Memory Efficient**: Optimized for ESP32's limited RAM with 25% usage (82KB/327KB)
 
+## 📸 Screenshots
+
+### Physical Device
+
+![CYD Crypto Ticker Device](screenshots/00_physical_device.jpg)
+*ESP32-2432S028R (CYD) running the crypto ticker application*
+
+### Configuration Mode
+<table>
+  <tr>
+    <td width="50%">
+
+![Configuration Mode Info](screenshots/01_config_mode.png)<br/>
+<em>Initial configuration portal information screen</em>
+    </td>
+    <td width="50%">
+
+![Configure via Phone](screenshots/02_configure_cyd.png)<br/>
+<em>Web configuration interface accessed from phone</em>
+    </td>
+  </tr>
+</table>
+
+### Main Display - Cryptocurrency Lists
+<table>
+  <tr>
+    <td width="50%">
+
+![Bull Market Display](screenshots/03_bull_market.png)<br/>
+<em>Main view during bull market - all green indicators</em>
+    </td>
+    <td width="50%">
+
+![Mixed Market Display](screenshots/04_mixed_market.png)<br/>
+<em>Mixed market conditions with varied price changes</em>
+    </td>
+  </tr>
+</table>
+
+### Interactive Candlestick Charts
+<table>
+  <tr>
+    <td width="50%">
+
+![1 Hour Candles](screenshots/05_1h_candles.png)<br/>
+<em>1-hour candlestick chart with moving average</em>
+    </td>
+    <td width="50%">
+
+![Interval Selection](screenshots/06_candle_settings.png)<br/>
+<em>Touch-based interval selector (1m to 1M)</em>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+
+![1 Day Candles](screenshots/07_1d_candles.png)<br/>
+<em>Daily candlestick chart view</em>
+    </td>
+    <td width="50%">
+
+![1 Minute Candles](screenshots/08_1m_candles.png)<br/>
+<em>Real-time 1-minute chart for day trading</em>
+    </td>
+  </tr>
+</table>
+
+> **Note**: Screenshot capture functionality is available in the [`screenshots`](../../tree/screenshots) branch. See that branch's README for details.
+
 ## 🛠️ Hardware Requirements
 
 ### Supported Boards
